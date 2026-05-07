@@ -1,0 +1,118 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Order"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "PENDING_PAYMENT",
+        "PAID",
+        "PAYMENT_FAILED",
+        "ABANDONED",
+        "FULFILLMENT_PENDING",
+        "CANCELLED",
+        "FULFILLED"
+      ],
+      "default": "PENDING_PAYMENT",
+      "required": true
+    },
+    "currency": {
+      "type": "string",
+      "default": "INR",
+      "required": true
+    },
+    "subtotalInMinor": {
+      "type": "biginteger",
+      "required": true
+    },
+    "taxInMinor": {
+      "type": "biginteger",
+      "required": true,
+      "default": "0"
+    },
+    "shippingInMinor": {
+      "type": "biginteger",
+      "required": true,
+      "default": "0"
+    },
+    "totalInMinor": {
+      "type": "biginteger",
+      "required": true
+    },
+    "contactEmail": {
+      "type": "string",
+      "required": true
+    },
+    "contactPhone": {
+      "type": "string",
+      "required": true
+    },
+    "shippingRecipientName": {
+      "type": "string",
+      "required": true
+    },
+    "shippingLine1": {
+      "type": "string",
+      "required": true
+    },
+    "shippingLine2": {
+      "type": "string"
+    },
+    "shippingCity": {
+      "type": "string",
+      "required": true
+    },
+    "shippingState": {
+      "type": "string",
+      "required": true
+    },
+    "shippingPostalCode": {
+      "type": "string",
+      "required": true
+    },
+    "shippingCountryCode": {
+      "type": "string",
+      "required": true,
+      "default": "IN"
+    },
+    "shippingPhone": {
+      "type": "string",
+      "required": true
+    },
+    "providerOrderId": {
+      "type": "string",
+      "unique": true
+    },
+    "providerPaymentId": {
+      "type": "string",
+      "unique": true
+    },
+    "customerAccount": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::customer-account.customer-account",
+      "inversedBy": "orders"
+    },
+    "lineItems": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::order-line-item.order-line-item",
+      "mappedBy": "order"
+    },
+    "shipments": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::shipment.shipment",
+      "mappedBy": "order"
+    }
+  }
+}

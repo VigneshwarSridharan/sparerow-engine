@@ -1,0 +1,4 @@
+import { factories } from '@strapi/strapi';
+export default factories.createCoreRouter('api::shipment.shipment', {
+  except: ['find', 'findOne', 'create', 'update', 'delete'],
+});
