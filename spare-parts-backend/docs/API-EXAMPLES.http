@@ -1,0 +1,78 @@
+### Storefront (public)
+GET http://localhost:1337/api/storefront/catalog/brands
+GET http://localhost:1337/api/storefront/catalog/brands/acme-parts/models
+GET http://localhost:1337/api/storefront/catalog/brands/acme-parts/models/widget-x100/products
+GET http://localhost:1337/api/storefront/catalog/brands/acme-parts/models/widget-x100/products/ACME-FILTER-001
+GET http://localhost:1337/api/storefront/catalog/products/ACME-FILTER-001
+GET http://localhost:1337/api/storefront/cms/home-hero
+
+### Auth
+POST http://localhost:1337/api/storefront/auth/register
+Content-Type: application/json
+
+{"email":"buyer@example.com","password":"password123"}
+
+###
+POST http://localhost:1337/api/storefront/auth/login
+Content-Type: application/json
+
+{"email":"buyer@example.com","password":"password123"}
+
+###
+GET http://localhost:1337/api/storefront/auth/session
+Authorization: Bearer <customer_jwt>
+
+### Account (customer JWT)
+GET http://localhost:1337/api/storefront/account/addresses
+Authorization: Bearer <customer_jwt>
+
+### Checkout (guest example)
+POST http://localhost:1337/api/storefront/checkout/orders
+Content-Type: application/json
+
+{
+  "lines": [{"sku":"ACME-FILTER-001","quantity":1}],
+  "contactEmail":"guest@example.com",
+  "contactPhone":"9876543210",
+  "guestShipping": {
+    "customerName":"Guest User",
+    "line1":"12 MG Road",
+    "line2":"",
+    "city":"Bengaluru",
+    "state":"KA",
+    "postalCode":"560001",
+    "countryCode":"IN",
+    "phone":"9876543210"
+  }
+}
+
+### Payments (internal key)
+POST http://localhost:1337/api/payments/razorpay/order
+Content-Type: application/json
+x-internal-api-key: <STRAPI_INTERNAL_API_KEY>
+
+{"orderId":1}
+
+###
+GET http://localhost:1337/api/payments/orders/1
+x-internal-api-key: <STRAPI_INTERNAL_API_KEY>
+
+### Admin (internal key + Strapi admin Bearer)
+GET http://localhost:1337/api/admin/orders/ops-summary
+x-internal-api-key: <STRAPI_INTERNAL_API_KEY>
+Authorization: Bearer <strapi_admin_access_token>
+
+###
+POST http://localhost:1337/api/admin/inventory/adjust
+Content-Type: application/json
+x-internal-api-key: <STRAPI_INTERNAL_API_KEY>
+Authorization: Bearer <strapi_admin_access_token>
+
+{"sku":"ACME-FILTER-001","delta":5}
+
+### Webhooks (signatures / secrets)
+POST http://localhost:1337/api/webhooks/shipping-events
+Content-Type: application/json
+x-shipper-secret: <SHIPROCKET_WEBHOOK_SECRET>
+
+{"shipmentId":1,"nextStatus":"BOOKED"}
