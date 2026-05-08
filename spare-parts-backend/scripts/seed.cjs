@@ -1,5 +1,14 @@
 const path = require('path');
 const { createStrapi } = require('@strapi/strapi');
+const { brands, models, products, partTypes } = require('./seed-data.cjs');
+
+function toSlug(value, fallback) {
+  const slug = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || fallback;
+}
 
 async function main() {
   const appDir = process.cwd();
@@ -12,44 +21,66 @@ async function main() {
   });
   await app.load();
 
-  const existing = await app.db.query('api::brand.brand').findOne({ where: { slug: 'acme-parts' } });
+  const existing = await app.db.query('api::product.product').findOne({ where: { sku: products[0]?.sku } });
   if (existing) {
-    app.log.info('Seed skipped: sample brand already exists');
+    app.log.info('Seed skipped: dataset already loaded');
     await app.destroy();
     return;
   }
 
-  const brand = await app.db.query('api::brand.brand').create({
-    data: { slug: 'acme-parts', name: 'ACME Parts', isActive: true },
-  });
+  const brandBySeedId = new Map();
+  for (const brand of brands) {
+    const brandSlug = toSlug(brand.slug, `brand-${brand.id}`);
+    const created = await app.db.query('api::brand.brand').create({
+      data: { slug: brandSlug, name: brand.name, isActive: true },
+    });
+    brandBySeedId.set(brand.id, created.id);
+  }
 
-  const model = await app.db.query('api::part-model.part-model').create({
-    data: { slug: 'widget-x100', name: 'Widget X100', isActive: true, brand: brand.id },
-  });
+  const modelBySeedId = new Map();
+  for (const model of models) {
+    const brandId = brandBySeedId.get(model.brandId);
+    if (!brandId) continue;
+    const modelSlug = toSlug(model.slug, `${toSlug(model.name, 'model')}-${model.id}`);
+    const created = await app.db.query('api::part-model.part-model').create({
+      data: { slug: modelSlug, name: model.name, isActive: true, brand: brandId },
+    });
+    modelBySeedId.set(model.id, created.id);
+  }
 
-  const cat = await app.db.query('api::part-category.part-category').create({
-    data: { slug: 'filters', name: 'Filters', isActive: true },
-  });
+  const categoryByName = new Map();
+  for (const partType of partTypes) {
+    const slug = toSlug(partType, 'other');
+    const created = await app.db.query('api::part-category.part-category').create({
+      data: { slug: slug || 'other', name: partType || 'Other', isActive: true },
+    });
+    categoryByName.set(partType, created.id);
+  }
 
-  await app.db.query('api::product.product').create({
-    data: {
-      sku: 'ACME-FILTER-001',
-      name: 'Primary Air Filter',
-      description: 'OEM-grade intake filter',
-      priceInMinor: '249900',
-      quantityOnHand: 40,
-      quantityReserved: 0,
-      isActive: true,
-      partModel: model.id,
-      partCategory: cat.id,
-    },
-  });
+  for (const product of products) {
+    const partModel = modelBySeedId.get(product.modelId);
+    const partCategory = categoryByName.get(product.partType);
+    if (!partModel || !partCategory) continue;
+    await app.db.query('api::product.product').create({
+      data: {
+        sku: product.sku,
+        name: product.name,
+        description: product.description,
+        priceInMinor: String(Math.round((product.discountPrice || product.price || 0) * 100)),
+        quantityOnHand: product.inStock ? product.stockQty ?? 0 : 0,
+        quantityReserved: 0,
+        isActive: product.inStock !== false,
+        partModel,
+        partCategory,
+      },
+    });
+  }
 
   await app.db.query('api::cms-block.cms-block').create({
     data: {
       slug: 'home-hero',
-      title: 'Genuine spare parts',
-      body: 'Fast delivery across India. OEM quality.',
+      title: 'Catalog loaded',
+      body: `Seeded ${brands.length} brands, ${models.length} models, ${products.length} products`,
       imageUrl: 'https://example.com/hero.jpg',
       isActive: true,
     },
