@@ -1,0 +1,19 @@
+{
+  "kind": "singleType",
+  "collectionName": "commerce_singleton_placeholders",
+  "info": {
+    "singularName": "singleton-placeholder",
+    "pluralName": "singleton-placeholders",
+    "displayName": "Internal (commerce routing)"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "note": {
+      "type": "string",
+      "default": "reserved"
+    }
+  }
+}

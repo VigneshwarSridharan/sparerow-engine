@@ -1,0 +1,40 @@
+{
+  "kind": "collectionType",
+  "collectionName": "customer_accounts",
+  "info": {
+    "singularName": "customer-account",
+    "pluralName": "customer-accounts",
+    "displayName": "Customer Account"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "email": {
+      "type": "string",
+      "unique": true
+    },
+    "phone": {
+      "type": "string",
+      "unique": true
+    },
+    "passwordHash": {
+      "type": "string",
+      "private": true,
+      "required": true
+    },
+    "addresses": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::customer-address.customer-address",
+      "mappedBy": "customerAccount"
+    },
+    "orders": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::order.order",
+      "mappedBy": "customerAccount"
+    }
+  }
+}

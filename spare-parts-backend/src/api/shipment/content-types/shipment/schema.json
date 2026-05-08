@@ -1,0 +1,57 @@
+{
+  "kind": "collectionType",
+  "collectionName": "shipments",
+  "info": {
+    "singularName": "shipment",
+    "pluralName": "shipments",
+    "displayName": "Shipment"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "carrier": {
+      "type": "enumeration",
+      "enum": ["MOCK", "SHIPROCKET", "DELHIVERY"],
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "DRAFT",
+        "BOOKED",
+        "READY_TO_PICKUP",
+        "IN_TRANSIT",
+        "DELIVERED",
+        "FAILED"
+      ],
+      "default": "DRAFT",
+      "required": true
+    },
+    "carrierShipmentRef": {
+      "type": "string"
+    },
+    "trackingNumber": {
+      "type": "string"
+    },
+    "carrierStatusLabel": {
+      "type": "string"
+    },
+    "lastAdminMessage": {
+      "type": "text"
+    },
+    "lastSyncedAt": {
+      "type": "datetime"
+    },
+    "carrierMetadata": {
+      "type": "json"
+    },
+    "order": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::order.order",
+      "inversedBy": "shipments"
+    }
+  }
+}

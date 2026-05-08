@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "webhook_deliveries",
+  "info": {
+    "singularName": "webhook-delivery",
+    "pluralName": "webhook-deliveries",
+    "displayName": "Webhook Delivery"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "provider": {
+      "type": "string",
+      "required": true
+    },
+    "eventId": {
+      "type": "string",
+      "required": true
+    },
+    "payloadHash": {
+      "type": "string",
+      "required": true
+    },
+    "receivedAt": {
+      "type": "datetime",
+      "required": true
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "name": "spare-parts-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Strapi application",
+  "scripts": {
+    "build": "strapi build",
+    "console": "strapi console",
+    "deploy": "strapi deploy",
+    "dev": "strapi develop",
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "strapi": "strapi",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "npm run build && node ./scripts/seed.cjs",
+    "upgrade": "npx @strapi/upgrade latest",
+    "upgrade:dry": "npx @strapi/upgrade latest --dry"
+  },
+  "dependencies": {
+    "@strapi/plugin-cloud": "5.45.0",
+    "@strapi/plugin-users-permissions": "5.45.0",
+    "@strapi/strapi": "5.45.0",
+    "axios": "^1.16.0",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "12.8.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "raw-body": "^3.0.2",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^6.0.0",
+    "styled-components": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/raw-body": "^2.1.4",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "vitest": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0 <=24.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "e7a09be6-d9ac-4a24-824d-6ed113f0d3ab",
+    "installId": "59f2132f5183de8afe215e8a0a3247c3a51d4030fe136dd1dfa26b385746b4ac"
+  }
+}
