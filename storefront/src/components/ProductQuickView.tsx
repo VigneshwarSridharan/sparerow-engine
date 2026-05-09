@@ -6,10 +6,10 @@ import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useRecentlyViewed } from '@/contexts/RecentlyViewedContext';
-import { brands, models } from '@/data/seedData';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface ProductQuickViewProps {
   product: Product | null;
@@ -21,6 +21,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToRecentlyViewed } = useRecentlyViewed();
+  const { brands, models } = useStorefrontData();
   const [qty, setQty] = useState(1);
 
   useEffect(() => {

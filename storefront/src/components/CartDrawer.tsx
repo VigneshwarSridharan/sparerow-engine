@@ -73,7 +73,7 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
               {!couponCode && (
                 <div className="flex gap-2">
                   <Input placeholder="Coupon code" value={couponInput} onChange={e => setCouponInput(e.target.value)} className="h-9" />
-                  <Button size="sm" variant="outline" onClick={() => { applyCoupon(couponInput); setCouponInput(''); }}>Apply</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { await applyCoupon(couponInput); setCouponInput(''); }}>Apply</Button>
                 </div>
               )}
               {couponCode && (

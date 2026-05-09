@@ -29,6 +29,7 @@ npm run test
 
 - [Runbook](docs/RUNBOOK.md) — local setup, env vars, production checklist
 - [HTTP examples](docs/API-EXAMPLES.http) — example requests for key routes
+- [Storefront GraphQL](docs/GRAPHQL-STOREFRONT.md) — schema, auth, and error model
 
 ## API overview
 
@@ -38,6 +39,7 @@ npm run test
 | Customer auth | `/api/storefront/auth/...` | Public register/login |
 | Account & orders | `/api/storefront/account/...`, `/api/storefront/orders/...` | Bearer customer JWT |
 | Checkout | `POST /api/storefront/checkout/orders` | Optional Bearer JWT |
+| Storefront GraphQL | `/graphql` | Public + customer Bearer JWT for protected operations |
 | Payments (BFF) | `/api/payments/...` | `x-internal-api-key` |
 | Webhooks | `/api/webhooks/...` | Signatures / shipper secret |
 | Admin | `/api/admin/...` | `x-internal-api-key` + Strapi admin access token |

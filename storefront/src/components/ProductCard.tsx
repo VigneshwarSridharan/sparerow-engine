@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { brands, models } from '@/data/seedData';
 import { cn } from '@/lib/utils';
 import { getPartImage } from '@/lib/partImages';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +17,7 @@ interface ProductCardProps {
 export function ProductCard({ product, onQuickView, onViewDetails }: ProductCardProps) {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { brands, models } = useStorefrontData();
   const brand = brands.find(b => b.id === product.brandId);
   const model = models.find(m => m.id === product.modelId);
   const inWishlist = isInWishlist(product.id);

@@ -96,6 +96,13 @@
       "type": "string",
       "unique": true
     },
+    "promoCode": {
+      "type": "string"
+    },
+    "promoDiscountInMinor": {
+      "type": "biginteger",
+      "default": "0"
+    },
     "customerAccount": {
       "type": "relation",
       "relation": "manyToOne",

@@ -3,10 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
-import { brands, models, partTypes } from '@/data/seedData';
 import { FilterState } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface FilterDrawerProps {
   filters: FilterState;
@@ -17,6 +16,7 @@ interface FilterDrawerProps {
 }
 
 export function FilterDrawer({ filters, onFiltersChange, isOpen, onClose, maxPrice }: FilterDrawerProps) {
+  const { brands, models, partTypes } = useStorefrontData();
   const filteredModels = filters.brandId ? models.filter(m => m.brandId === filters.brandId) : models;
 
   const content = (

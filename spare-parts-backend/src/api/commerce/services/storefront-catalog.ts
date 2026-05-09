@@ -43,6 +43,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     });
   },
 
+  async listAllModels() {
+    return strapi.db.query('api::part-model.part-model').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      populate: ['brand'],
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+  },
+
   async listProducts(brandSlug: string, modelSlug: string) {
     assertSlug('brandSlug', brandSlug);
     assertSlug('modelSlug', modelSlug);
@@ -60,6 +69,77 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       orderBy: { name: 'asc' },
     });
     return products.map((row) => serializeProduct(row as unknown as Record<string, unknown>));
+  },
+
+  async listCategories() {
+    return strapi.db.query('api::part-category.part-category').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+  },
+
+  async listAllProducts(filters?: {
+    brandSlug?: string;
+    modelSlug?: string;
+    categorySlug?: string;
+    search?: string;
+    inStockOnly?: boolean;
+  }) {
+    const where: Record<string, unknown> = { isActive: true };
+    if (filters?.brandSlug) {
+      assertSlug('brandSlug', filters.brandSlug);
+      const brand = await strapi.db.query('api::brand.brand').findOne({
+        where: { slug: filters.brandSlug, isActive: true },
+      });
+      if (!brand) throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
+      where.partModel = { brand: brand.id };
+    }
+    if (filters?.modelSlug) {
+      assertSlug('modelSlug', filters.modelSlug);
+      const model = await strapi.db.query('api::part-model.part-model').findOne({
+        where: { slug: filters.modelSlug, isActive: true },
+      });
+      if (!model) throw new AppError(404, 'MODEL_NOT_FOUND', 'Model not found');
+      where.partModel = model.id;
+    }
+    if (filters?.categorySlug) {
+      assertSlug('categorySlug', filters.categorySlug);
+      const category = await strapi.db.query('api::part-category.part-category').findOne({
+        where: { slug: filters.categorySlug, isActive: true },
+      });
+      if (!category) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category not found');
+      where.partCategory = category.id;
+    }
+    if (filters?.search) {
+      const q = String(filters.search).trim();
+      if (q.length > 0) {
+        where.$or = [
+          { name: { $containsi: q } },
+          { sku: { $containsi: q } },
+          { description: { $containsi: q } },
+        ];
+      }
+    }
+    if (filters?.inStockOnly) {
+      where.quantityOnHand = { $gt: 0 };
+    }
+
+    const products = await strapi.db.query('api::product.product').findMany({
+      where,
+      populate: {
+        partCategory: true,
+        partModel: {
+          populate: { brand: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    const serialized = products.map((row) => serializeProduct(row as unknown as Record<string, unknown>));
+    if (filters?.inStockOnly) {
+      return serialized.filter((product) => Number(product.availableToSell) > 0);
+    }
+    return serialized;
   },
 
   async getProductByBrandModelSku(brandSlug: string, modelSlug: string, sku: string) {

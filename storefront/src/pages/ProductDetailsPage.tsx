@@ -3,29 +3,34 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { products, brands, models } from '@/data/seedData';
 import { getPartImage } from '@/lib/partImages';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { ProductCard } from '@/components/ProductCard';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 export default function ProductDetailsPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
+  const { products, brands, models, isLoading } = useStorefrontData();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
   const product = useMemo(() => products.find((item) => item.id === productId), [productId]);
 
-  if (!product) {
+  if (!product && !isLoading) {
     return (
       <div className="container py-20 text-center">
         <p className="text-lg text-muted-foreground">Product not found.</p>
         <Button className="mt-4" onClick={() => navigate('/products')}>Back to Products</Button>
       </div>
     );
+  }
+
+  if (!product) {
+    return <div className="container py-20 text-center text-muted-foreground">Loading product details…</div>;
   }
 
   const relatedProducts = products

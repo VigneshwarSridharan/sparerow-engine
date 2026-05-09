@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { CustomerInfo } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CheckCircle, ArrowLeft } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
+import { createStorefrontOrder } from '@/lib/graphql/storefront';
+import { toast } from '@/hooks/use-toast';
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const { items, getCartTotal, couponCode, couponDiscount, clearCart } = useCart();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<CustomerInfo>({
     firstName: '', lastName: '', email: '', phone: '', address: '', city: '', state: '', pincode: '',
   });
@@ -26,12 +29,38 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const discount = subtotal * couponDiscount / 100;
   const total = subtotal - discount + shipping;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const id = 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-    setOrderId(id);
-    setOrderPlaced(true);
-    clearCart();
+    if (items.length === 0) {
+      toast({ title: 'Cart is empty', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const order = await createStorefrontOrder({
+        lines: items.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
+        contactPhone: form.phone,
+        contactEmail: form.email,
+        promoCode: couponCode || undefined,
+        guestShipping: {
+          customerName: `${form.firstName} ${form.lastName}`.trim(),
+          line1: form.address,
+          city: form.city,
+          state: form.state,
+          postalCode: form.pincode,
+          phone: form.phone,
+          countryCode: 'IN',
+        },
+      });
+      setOrderId(`ORD-${order.id}`);
+      setOrderPlaced(true);
+      clearCart();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to place order';
+      toast({ title: 'Checkout failed', description: message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -106,8 +135,8 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
                 </div>
               </div>
 
-              <Button type="submit" size="lg" className="w-full">
-                Place Order — ₹{total.toLocaleString()}
+              <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+                {submitting ? 'Placing order…' : `Place Order — ₹${total.toLocaleString()}`}
               </Button>
             </form>
           </>

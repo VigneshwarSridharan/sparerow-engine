@@ -3,10 +3,10 @@ import { Check, X, ArrowRight, Settings2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { brands, models, products, partTypes } from '@/data/seedData';
 import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { getPartImage } from '@/lib/partImages';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 import appleLogo from '@/assets/brands/apple-logo.png';
 import samsungLogo from '@/assets/brands/samsung-logo.png';
@@ -33,6 +33,7 @@ function scrollStepIntoView(el: HTMLElement | null) {
 }
 
 export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
+  const { brands, models, products, partTypes } = useStorefrontData();
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedPartType, setSelectedPartType] = useState<string | null>(null);

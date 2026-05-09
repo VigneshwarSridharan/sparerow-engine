@@ -29,6 +29,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     lines: CartLine[];
     contactPhone: string;
     contactEmail?: string;
+    promoCode?: string;
     customerId?: number;
     shippingAddressId?: number;
     guestShipping?: Record<string, unknown>;
@@ -137,9 +138,26 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         });
       }
 
+      let promoCode: string | undefined;
+      let promoDiscount = 0n;
+      if (input.promoCode) {
+        const promoService = strapi.service('api::commerce.storefront-promo') as {
+          validatePromoForSubtotal: (
+            codeInput: string,
+            subtotalInMinor: bigint
+          ) => Promise<{ code: string; discountPercent: number; maxDiscountInMinor?: bigint }>;
+        };
+        const promo = await promoService.validatePromoForSubtotal(input.promoCode, subtotal);
+        promoCode = promo.code;
+        promoDiscount = (subtotal * BigInt(Math.max(0, Math.min(100, promo.discountPercent)))) / 100n;
+        if (promo.maxDiscountInMinor != null && promoDiscount > promo.maxDiscountInMinor) {
+          promoDiscount = promo.maxDiscountInMinor;
+        }
+      }
+
       const tax = 0n;
       const shipping = 0n;
-      const total = subtotal + tax + shipping;
+      const total = subtotal + tax + shipping - promoDiscount;
 
       const primary = (strapi.config.get<string>('shipping.primary') || 'MOCK').toUpperCase();
       const carrier =
@@ -153,6 +171,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           taxInMinor: tax.toString(),
           shippingInMinor: shipping.toString(),
           totalInMinor: total.toString(),
+          promoCode: promoCode || null,
+          promoDiscountInMinor: promoDiscount.toString(),
           contactEmail,
           contactPhone,
           ...shipSnap,
