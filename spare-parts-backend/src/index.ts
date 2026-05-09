@@ -232,25 +232,25 @@ export default {
           ok: Boolean!
         }
 
-        extend type Query {
+        type Query {
           storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
           storefrontProducts(filter: StorefrontCatalogFilterInput): [StorefrontProduct!]!
           storefrontProductBySku(sku: String!): StorefrontProduct
           storefrontPromoCode(code: String!): StorefrontPromoCode
-          storefrontSession: StorefrontSession!
-          storefrontMe: StorefrontCustomer
-          storefrontAddresses: [StorefrontAddress!]!
-          storefrontOrders: [StorefrontOrder!]!
-          storefrontOrder(id: ID!): StorefrontOrder
+          storefrontSession(token: String): StorefrontSession!
+          storefrontMe(token: String): StorefrontCustomer
+          storefrontAddresses(token: String!): [StorefrontAddress!]!
+          storefrontOrders(token: String!): [StorefrontOrder!]!
+          storefrontOrder(id: ID!, token: String!): StorefrontOrder
         }
 
-        extend type Mutation {
+        type Mutation {
           storefrontRegister(input: StorefrontAuthInput!): StorefrontAuthPayload!
           storefrontLogin(input: StorefrontAuthInput!): StorefrontAuthPayload!
           storefrontLogout: StorefrontMutationResult!
-          storefrontCreateAddress(input: StorefrontAddressInput!): StorefrontAddress!
-          storefrontUpdateAddress(id: ID!, input: StorefrontAddressInput!): StorefrontAddress!
-          storefrontDeleteAddress(id: ID!): StorefrontMutationResult!
+          storefrontCreateAddress(token: String!, input: StorefrontAddressInput!): StorefrontAddress!
+          storefrontUpdateAddress(token: String!, id: ID!, input: StorefrontAddressInput!): StorefrontAddress!
+          storefrontDeleteAddress(token: String!, id: ID!): StorefrontMutationResult!
           storefrontCreateOrder(input: StorefrontCreateOrderInput!): StorefrontOrder!
         }
       `,
@@ -443,33 +443,55 @@ export default {
               throwGraphQLError(error);
             }
           },
-          storefrontSession: async (_: unknown, __: unknown, context: { koaContext: { request: { header: { authorization?: string } } } }) => {
+          storefrontSession: async (
+            _: unknown,
+            args: { token?: string },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 session: (authorization?: string) => Promise<Record<string, unknown>>;
               };
-              return auth.session(context.koaContext.request.header.authorization);
+              const token = String(args.token || '').trim();
+              const authorization = token
+                ? `Bearer ${token}`
+                : context.koaContext.request.header.authorization;
+              return auth.session(authorization);
             } catch (error) {
               throwGraphQLError(error);
             }
           },
-          storefrontMe: async (_: unknown, __: unknown, context: { koaContext: { request: { header: { authorization?: string } } } }) => {
+          storefrontMe: async (
+            _: unknown,
+            args: { token?: string },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 session: (authorization?: string) => Promise<{ authenticated: boolean; customer?: Record<string, unknown> }>;
               };
-              const session = await auth.session(context.koaContext.request.header.authorization);
+              const token = String(args.token || '').trim();
+              const authorization = token
+                ? `Bearer ${token}`
+                : context.koaContext.request.header.authorization;
+              const session = await auth.session(authorization);
               return session.authenticated ? session.customer : null;
             } catch (error) {
               throwGraphQLError(error);
             }
           },
-          storefrontAddresses: async (_: unknown, __: unknown, context: { koaContext: { request: { header: { authorization?: string } } } }) => {
+          storefrontAddresses: async (
+            _: unknown,
+            args: { token: string },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -480,12 +502,18 @@ export default {
               throwGraphQLError(error);
             }
           },
-          storefrontOrders: async (_: unknown, __: unknown, context: { koaContext: { request: { header: { authorization?: string } } } }) => {
+          storefrontOrders: async (
+            _: unknown,
+            args: { token: string },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -496,12 +524,18 @@ export default {
               throwGraphQLError(error);
             }
           },
-          storefrontOrder: async (_: unknown, args: { id: string }, context: { koaContext: { request: { header: { authorization?: string } } } }) => {
+          storefrontOrder: async (
+            _: unknown,
+            args: { id: string; token: string },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -537,14 +571,16 @@ export default {
           storefrontLogout: async () => ({ ok: true }),
           storefrontCreateAddress: async (
             _: unknown,
-            args: { input: Record<string, unknown> },
+            args: { token: string; input: Record<string, unknown> },
             context: { koaContext: { request: { header: { authorization?: string } } } }
           ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -557,14 +593,16 @@ export default {
           },
           storefrontUpdateAddress: async (
             _: unknown,
-            args: { id: string; input: Record<string, unknown> },
+            args: { token: string; id: string; input: Record<string, unknown> },
             context: { koaContext: { request: { header: { authorization?: string } } } }
           ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -581,14 +619,16 @@ export default {
           },
           storefrontDeleteAddress: async (
             _: unknown,
-            args: { id: string },
+            args: { token: string; id: string },
             context: { koaContext: { request: { header: { authorization?: string } } } }
           ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               if (!raw) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication required');
               const { sub } = auth.verifyCustomerToken(raw);
               const account = strapi.service('api::commerce.storefront-account') as {
@@ -635,6 +675,24 @@ export default {
             }
           },
         },
+      },
+      resolversConfig: {
+        'Query.storefrontCatalogBootstrap': { auth: false },
+        'Query.storefrontProducts': { auth: false },
+        'Query.storefrontProductBySku': { auth: false },
+        'Query.storefrontPromoCode': { auth: false },
+        'Query.storefrontSession': { auth: false },
+        'Query.storefrontMe': { auth: false },
+        'Query.storefrontAddresses': { auth: false },
+        'Query.storefrontOrders': { auth: false },
+        'Query.storefrontOrder': { auth: false },
+        'Mutation.storefrontRegister': { auth: false },
+        'Mutation.storefrontLogin': { auth: false },
+        'Mutation.storefrontLogout': { auth: false },
+        'Mutation.storefrontCreateAddress': { auth: false },
+        'Mutation.storefrontUpdateAddress': { auth: false },
+        'Mutation.storefrontDeleteAddress': { auth: false },
+        'Mutation.storefrontCreateOrder': { auth: false },
       },
     }));
   },

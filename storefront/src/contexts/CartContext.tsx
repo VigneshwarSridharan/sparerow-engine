@@ -22,7 +22,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { promoCodes } = useStorefrontData();
+  const { promoCodes, products } = useStorefrontData();
   const [items, setItems] = useState<CartItem[]>(() => {
     try { return JSON.parse(localStorage.getItem('cart') || '[]'); } catch { return []; }
   });
@@ -31,6 +31,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => { localStorage.setItem('cart', JSON.stringify(items)); }, [items]);
+  useEffect(() => {
+    if (products.length === 0) return;
+    setItems((prev) =>
+      prev.filter((item) => products.some((product) => product.sku === item.product.sku))
+    );
+  }, [products]);
 
   const addToCart = useCallback((product: Product, quantity = 1) => {
     setItems(prev => {

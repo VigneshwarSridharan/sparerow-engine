@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CheckCircle } from 'lucide-react';
 import { createStorefrontOrder } from '@/lib/graphql/storefront';
 import { toast } from '@/hooks/use-toast';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -16,7 +17,8 @@ interface CheckoutProps {
 }
 
 export function Checkout({ isOpen, onClose }: CheckoutProps) {
-  const { items, getCartTotal, couponCode, couponDiscount, clearCart } = useCart();
+  const { items, couponCode, couponDiscount, clearCart } = useCart();
+  const { products } = useStorefrontData();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,21 +26,23 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     firstName: '', lastName: '', email: '', phone: '', address: '', city: '', state: '', pincode: '',
   });
 
-  const subtotal = items.reduce((sum, i) => sum + i.product.discountPrice * i.quantity, 0);
+  const validSkuSet = new Set(products.map((product) => product.sku));
+  const validItems = items.filter((item) => validSkuSet.has(item.product.sku));
+  const subtotal = validItems.reduce((sum, i) => sum + i.product.discountPrice * i.quantity, 0);
   const shipping = subtotal > 2000 ? 0 : 99;
   const discount = subtotal * couponDiscount / 100;
   const total = subtotal - discount + shipping;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0) {
+    if (validItems.length === 0) {
       toast({ title: 'Cart is empty', variant: 'destructive' });
       return;
     }
     setSubmitting(true);
     try {
       const order = await createStorefrontOrder({
-        lines: items.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
+        lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
         contactPhone: form.phone,
         contactEmail: form.email,
         promoCode: couponCode || undefined,
@@ -120,7 +124,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
               <div>
                 <h3 className="font-semibold mb-3">Order Summary</h3>
                 <div className="space-y-2">
-                  {items.map(item => (
+                  {validItems.map(item => (
                     <div key={item.product.id} className="flex justify-between text-sm">
                       <span className="truncate max-w-[250px]">{item.product.name} × {item.quantity}</span>
                       <span className="font-medium">₹{(item.product.discountPrice * item.quantity).toLocaleString()}</span>
