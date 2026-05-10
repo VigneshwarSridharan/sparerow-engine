@@ -206,8 +206,19 @@ export default {
           lineTotalInMinor: String!
         }
 
+        type StorefrontShipment {
+          id: ID!
+          carrier: String!
+          status: String!
+          trackingNumber: String
+          carrierShipmentRef: String
+          carrierStatusLabel: String
+          lastSyncedAt: String
+        }
+
         type StorefrontOrder {
           id: ID!
+          createdAt: String
           status: String!
           currency: String!
           subtotalInMinor: String!
@@ -227,6 +238,7 @@ export default {
           shippingCountryCode: String!
           shippingPhone: String!
           lineItems: [StorefrontOrderLine!]!
+          shipments: [StorefrontShipment!]!
         }
 
         type StorefrontCreateOrderPayload {
@@ -742,6 +754,18 @@ export default {
               throwGraphQLError(error);
             }
           },
+        },
+        StorefrontOrder: {
+          createdAt: (parent: Record<string, unknown>) =>
+            parent.createdAt != null ? String(parent.createdAt) : null,
+          shipments: (parent: Record<string, unknown>) => {
+            const rows = parent.shipments;
+            return Array.isArray(rows) ? rows : [];
+          },
+        },
+        StorefrontShipment: {
+          lastSyncedAt: (parent: Record<string, unknown>) =>
+            parent.lastSyncedAt != null ? String(parent.lastSyncedAt) : null,
         },
       },
       resolversConfig: {

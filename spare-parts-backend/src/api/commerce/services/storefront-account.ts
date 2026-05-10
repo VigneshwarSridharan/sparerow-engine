@@ -73,7 +73,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     return strapi.db.query('api::order.order').findMany({
       where: { customerAccount: customerId },
       orderBy: { id: 'desc' },
-      populate: ['lineItems'],
+      populate: ['lineItems', 'shipments'],
       limit: 50,
     });
   },
