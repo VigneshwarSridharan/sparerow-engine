@@ -66,6 +66,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           data: {
             status: 'PAID',
             providerPaymentId: paymentId,
+            checkoutContinuationSecret: null,
           },
         });
       }
@@ -83,7 +84,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         await checkout.releaseReservationForOrder(order.id as number);
         await strapi.db.query('api::order.order').update({
           where: { id: order.id },
-          data: { status: 'PAYMENT_FAILED' },
+          data: { status: 'PAYMENT_FAILED', checkoutContinuationSecret: null },
         });
       }
     }

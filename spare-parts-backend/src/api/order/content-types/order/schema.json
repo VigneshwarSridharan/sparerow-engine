@@ -96,6 +96,10 @@
       "type": "string",
       "unique": true
     },
+    "checkoutContinuationSecret": {
+      "type": "string",
+      "private": true
+    },
     "promoCode": {
       "type": "string"
     },

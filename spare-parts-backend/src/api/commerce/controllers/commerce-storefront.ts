@@ -145,7 +145,7 @@ export default factories.createCoreController('api::commerce.singleton-placehold
           }
         }
       }
-      const data = await strapi.service('api::commerce.storefront-checkout').placeOrder({
+      const { order, continuationSecret } = await strapi.service('api::commerce.storefront-checkout').placeOrder({
         lines: (body.lines as []) || [],
         contactPhone: String(body.contactPhone || ''),
         contactEmail: body.contactEmail != null ? String(body.contactEmail) : undefined,
@@ -154,7 +154,7 @@ export default factories.createCoreController('api::commerce.singleton-placehold
         shippingAddressId: body.shippingAddressId != null ? Number(body.shippingAddressId) : undefined,
         guestShipping: body.guestShipping as Record<string, unknown> | undefined,
       });
-      ctx.body = { data };
+      ctx.body = { data: order, paymentContinuationSecret: continuationSecret };
     });
   },
 }));
