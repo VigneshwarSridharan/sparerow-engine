@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { ShoppingCart, Heart, Search, Menu, X } from 'lucide-react';
+import { ShoppingCart, Heart, Search, Menu, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { Badge } from '@/components/ui/badge';
+import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   onSearchOpen: () => void;
@@ -14,6 +22,7 @@ interface HeaderProps {
 export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
   const { getCartCount } = useCart();
   const { wishlistIds } = useWishlist();
+  const { token, logout } = useCustomerAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cartCount = getCartCount();
 
@@ -50,6 +59,25 @@ export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
         </nav>
 
         <div className="flex items-center gap-1">
+          {token ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Account menu">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onNavigate('/account/orders')}>My orders</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onNavigate('/account/addresses')}>Addresses</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => logout()}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => onNavigate('/login')}>
+              Sign in
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={onSearchOpen}>
             <Search className="h-5 w-5" />
           </Button>
@@ -80,6 +108,24 @@ export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
                 {item.label}
               </Button>
             ))}
+            {!token && (
+              <Button variant="ghost" className="justify-start sm:hidden" onClick={() => { onNavigate('/login'); setMobileMenuOpen(false); }}>
+                Sign in
+              </Button>
+            )}
+            {token && (
+              <>
+                <Button variant="ghost" className="justify-start" onClick={() => { onNavigate('/account/orders'); setMobileMenuOpen(false); }}>
+                  My orders
+                </Button>
+                <Button variant="ghost" className="justify-start" onClick={() => { onNavigate('/account/addresses'); setMobileMenuOpen(false); }}>
+                  Addresses
+                </Button>
+                <Button variant="ghost" className="justify-start text-muted-foreground" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                  Sign out
+                </Button>
+              </>
+            )}
           </nav>
         </div>
       )}

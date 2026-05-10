@@ -68,10 +68,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         shippingCountryCode: (addr.countryCode as string) || 'IN',
         shippingPhone: addr.phone as string,
       };
-    } else if (!input.customerId && input.guestShipping) {
-      const resolved = assertEmailOptional('contactEmail', input.contactEmail);
-      if (!resolved) throw new AppError(400, 'CONTACT_EMAIL_REQUIRED', 'Contact email required');
-      contactEmail = resolved;
+    } else if (input.guestShipping) {
       const s = input.guestShipping;
       shipSnap = {
         shippingRecipientName: String(s.customerName ?? ''),
@@ -86,8 +83,25 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       if (!shipSnap.shippingRecipientName || !shipSnap.shippingLine1 || !shipSnap.shippingCity) {
         throw new AppError(400, 'SHIPPING_INVALID', 'Invalid shipping payload');
       }
+      if (input.customerId) {
+        const acct = await strapi.db.query('api::customer-account.customer-account').findOne({
+          where: { id: input.customerId },
+        });
+        const emailFromAcct = assertEmailOptional('email', acct?.email);
+        const resolved = assertEmailOptional('contactEmail', input.contactEmail) || emailFromAcct;
+        if (!resolved) throw new AppError(400, 'CONTACT_EMAIL_REQUIRED', 'Contact email required');
+        contactEmail = resolved;
+      } else {
+        const resolved = assertEmailOptional('contactEmail', input.contactEmail);
+        if (!resolved) throw new AppError(400, 'CONTACT_EMAIL_REQUIRED', 'Contact email required');
+        contactEmail = resolved;
+      }
     } else {
-      throw new AppError(400, 'CHECKOUT_INCOMPLETE', 'Provide customerId+shippingAddressId or guestShipping');
+      throw new AppError(
+        400,
+        'CHECKOUT_INCOMPLETE',
+        'Provide shippingAddressId for a saved address, or guestShipping'
+      );
     }
 
     return strapi.db.transaction(async () => {

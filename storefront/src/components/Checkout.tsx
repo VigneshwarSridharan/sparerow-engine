@@ -15,6 +15,7 @@ import {
 import { loadRazorpayScript } from '@/lib/loadRazorpay';
 import { toast } from '@/hooks/use-toast';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ type PaymentSession = {
 export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const { items, couponCode, couponDiscount, clearCart } = useCart();
   const { products } = useStorefrontData();
+  const { token: customerToken } = useCustomerAuth();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderIdDisplay, setOrderIdDisplay] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -123,21 +125,24 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     }
     setSubmitting(true);
     try {
-      const created = await createStorefrontOrder({
-        lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
-        contactPhone: form.phone,
-        contactEmail: form.email,
-        promoCode: couponCode || undefined,
-        guestShipping: {
-          customerName: `${form.firstName} ${form.lastName}`.trim(),
-          line1: form.address,
-          city: form.city,
-          state: form.state,
-          postalCode: form.pincode,
-          phone: form.phone,
-          countryCode: 'IN',
+      const created = await createStorefrontOrder(
+        {
+          lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
+          contactPhone: form.phone,
+          contactEmail: form.email,
+          promoCode: couponCode || undefined,
+          guestShipping: {
+            customerName: `${form.firstName} ${form.lastName}`.trim(),
+            line1: form.address,
+            city: form.city,
+            state: form.state,
+            postalCode: form.pincode,
+            phone: form.phone,
+            countryCode: 'IN',
+          },
         },
-      });
+        customerToken ?? undefined
+      );
 
       const session: PaymentSession = {
         strapiOrderId: created.order.id,
