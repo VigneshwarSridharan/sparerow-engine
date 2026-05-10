@@ -26,7 +26,7 @@ Authorization: Bearer <customer_jwt>
 GET http://localhost:1337/api/storefront/account/addresses
 Authorization: Bearer <customer_jwt>
 
-### Checkout (guest example)
+### Checkout (guest example — response adds paymentContinuationSecret for Razorpay GraphQL mutations)
 POST http://localhost:1337/api/storefront/checkout/orders
 Content-Type: application/json
 

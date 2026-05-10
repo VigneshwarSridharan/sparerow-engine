@@ -45,14 +45,37 @@ type BootstrapResponse = {
 
 type CreateOrderResponse = {
   storefrontCreateOrder: {
-    id: string;
-    totalInMinor: string;
-    subtotalInMinor: string;
-    shippingInMinor: string;
-    promoCode?: string | null;
-    promoDiscountInMinor?: string | null;
+    paymentContinuationSecret: string;
+    order: {
+      id: string;
+      totalInMinor: string;
+      subtotalInMinor: string;
+      shippingInMinor: string;
+      promoCode?: string | null;
+      promoDiscountInMinor?: string | null;
+    };
   };
 };
+
+type PrepareRazorpayResponse = {
+  storefrontPrepareRazorpayPayment: {
+    razorpayOrderId: string;
+    amountInMinor: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+    strapiOrderId: string;
+  };
+};
+
+type VerifyRazorpayResponse = {
+  storefrontVerifyRazorpayPayment: {
+    id: string;
+    status: string;
+  };
+};
+
+export type StorefrontCreatedOrder = CreateOrderResponse['storefrontCreateOrder'];
 
 export type StorefrontBootstrapData = {
   brands: Brand[];
@@ -102,12 +125,37 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
 const CREATE_ORDER_MUTATION = `
   mutation StorefrontCreateOrder($input: StorefrontCreateOrderInput!) {
     storefrontCreateOrder(input: $input) {
+      paymentContinuationSecret
+      order {
+        id
+        totalInMinor
+        subtotalInMinor
+        shippingInMinor
+        promoCode
+        promoDiscountInMinor
+      }
+    }
+  }
+`;
+
+const PREPARE_RAZORPAY_MUTATION = `
+  mutation StorefrontPrepareRazorpay($orderId: ID!, $paymentContinuationSecret: String!) {
+    storefrontPrepareRazorpayPayment(orderId: $orderId, paymentContinuationSecret: $paymentContinuationSecret) {
+      razorpayOrderId
+      amountInMinor
+      amount
+      currency
+      keyId
+      strapiOrderId
+    }
+  }
+`;
+
+const VERIFY_RAZORPAY_MUTATION = `
+  mutation StorefrontVerifyRazorpay($input: StorefrontVerifyRazorpayPaymentInput!) {
+    storefrontVerifyRazorpayPayment(input: $input) {
       id
-      totalInMinor
-      subtotalInMinor
-      shippingInMinor
-      promoCode
-      promoDiscountInMinor
+      status
     }
   }
 `;
@@ -207,4 +255,25 @@ export async function createStorefrontOrder(
     token
   );
   return data.storefrontCreateOrder;
+}
+
+export async function prepareStorefrontRazorpayPayment(orderId: string, paymentContinuationSecret: string) {
+  const data = await graphqlRequest<PrepareRazorpayResponse, { orderId: string; paymentContinuationSecret: string }>(
+    PREPARE_RAZORPAY_MUTATION,
+    { orderId, paymentContinuationSecret }
+  );
+  return data.storefrontPrepareRazorpayPayment;
+}
+
+export async function verifyStorefrontRazorpayPayment(input: {
+  orderId: string;
+  paymentContinuationSecret: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}) {
+  const data = await graphqlRequest<VerifyRazorpayResponse, { input: typeof input }>(VERIFY_RAZORPAY_MUTATION, {
+    input,
+  });
+  return data.storefrontVerifyRazorpayPayment;
 }

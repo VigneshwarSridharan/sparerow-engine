@@ -229,6 +229,28 @@ export default {
           lineItems: [StorefrontOrderLine!]!
         }
 
+        type StorefrontCreateOrderPayload {
+          order: StorefrontOrder!
+          paymentContinuationSecret: String!
+        }
+
+        type StorefrontRazorpayPreparedOrder {
+          razorpayOrderId: String!
+          amountInMinor: String!
+          amount: Int!
+          currency: String!
+          keyId: String!
+          strapiOrderId: ID!
+        }
+
+        input StorefrontVerifyRazorpayPaymentInput {
+          orderId: ID!
+          paymentContinuationSecret: String!
+          razorpayOrderId: String!
+          razorpayPaymentId: String!
+          razorpaySignature: String!
+        }
+
         type StorefrontMutationResult {
           ok: Boolean!
         }
@@ -252,7 +274,9 @@ export default {
           storefrontCreateAddress(token: String!, input: StorefrontAddressInput!): StorefrontAddress!
           storefrontUpdateAddress(token: String!, id: ID!, input: StorefrontAddressInput!): StorefrontAddress!
           storefrontDeleteAddress(token: String!, id: ID!): StorefrontMutationResult!
-          storefrontCreateOrder(input: StorefrontCreateOrderInput!): StorefrontOrder!
+          storefrontCreateOrder(input: StorefrontCreateOrderInput!): StorefrontCreateOrderPayload!
+          storefrontPrepareRazorpayPayment(orderId: ID!, paymentContinuationSecret: String!): StorefrontRazorpayPreparedOrder!
+          storefrontVerifyRazorpayPayment(input: StorefrontVerifyRazorpayPaymentInput!): StorefrontOrder!
         }
       `,
       resolvers: {
@@ -659,10 +683,13 @@ export default {
                 }
               }
               const checkout = strapi.service('api::commerce.storefront-checkout') as {
-                placeOrder: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+                placeOrder: (input: Record<string, unknown>) => Promise<{
+                  order: Record<string, unknown>;
+                  continuationSecret: string;
+                }>;
               };
               const input = args.input || {};
-              return checkout.placeOrder({
+              const { order: created, continuationSecret } = await checkout.placeOrder({
                 lines: input.lines,
                 contactPhone: input.contactPhone,
                 contactEmail: input.contactEmail,
@@ -670,6 +697,46 @@ export default {
                 shippingAddressId: input.shippingAddressId != null ? Number(input.shippingAddressId) : undefined,
                 guestShipping: input.guestShipping,
                 customerId,
+              });
+              return { order: created, paymentContinuationSecret: continuationSecret };
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontPrepareRazorpayPayment: async (
+            _: unknown,
+            args: { orderId: string; paymentContinuationSecret: string }
+          ) => {
+            try {
+              const pay = strapi.service('api::commerce.payment-razorpay') as {
+                storefrontPrepareRazorpayPayment: (
+                  orderId: number,
+                  continuation: string
+                ) => Promise<Record<string, unknown>>;
+              };
+              return pay.storefrontPrepareRazorpayPayment(
+                Number(args.orderId),
+                String(args.paymentContinuationSecret || '').trim()
+              );
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontVerifyRazorpayPayment: async (
+            _: unknown,
+            args: { input: Record<string, unknown> }
+          ) => {
+            try {
+              const pay = strapi.service('api::commerce.payment-razorpay') as {
+                storefrontVerifyRazorpayPayment: (input: Record<string, unknown>) => Promise<unknown>;
+              };
+              const inp = args.input || {};
+              return pay.storefrontVerifyRazorpayPayment({
+                orderId: Number(inp.orderId),
+                continuationSecret: String(inp.paymentContinuationSecret || '').trim(),
+                razorpayOrderId: String(inp.razorpayOrderId || '').trim(),
+                razorpayPaymentId: String(inp.razorpayPaymentId || '').trim(),
+                razorpaySignature: String(inp.razorpaySignature || '').trim(),
               });
             } catch (error) {
               throwGraphQLError(error);
@@ -694,6 +761,8 @@ export default {
         'Mutation.storefrontUpdateAddress': { auth: false },
         'Mutation.storefrontDeleteAddress': { auth: false },
         'Mutation.storefrontCreateOrder': { auth: false },
+        'Mutation.storefrontPrepareRazorpayPayment': { auth: false },
+        'Mutation.storefrontVerifyRazorpayPayment': { auth: false },
       },
     }));
   },

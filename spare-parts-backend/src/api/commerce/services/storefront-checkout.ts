@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
 import {
@@ -11,6 +12,9 @@ import {
 } from '../../../lib/validators';
 
 type CartLine = { sku: string; quantity: number };
+
+const FREE_SHIPPING_SUBTOTAL_ABOVE_PAISE = 200000n;
+const FLAT_SHIPPING_INR_99_PAISE = 9900n;
 
 function mergeLines(lines: CartLine[]): { sku: string; quantity: number }[] {
   const map = new Map<string, number>();
@@ -156,8 +160,10 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       }
 
       const tax = 0n;
-      const shipping = 0n;
+      const shipping = subtotal > FREE_SHIPPING_SUBTOTAL_ABOVE_PAISE ? 0n : FLAT_SHIPPING_INR_99_PAISE;
       const total = subtotal + tax + shipping - promoDiscount;
+
+      const checkoutContinuationSecret = crypto.randomBytes(24).toString('hex');
 
       const primary = (strapi.config.get<string>('shipping.primary') || 'MOCK').toUpperCase();
       const carrier =
@@ -167,6 +173,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         data: {
           status: 'PENDING_PAYMENT',
           currency: 'INR',
+          checkoutContinuationSecret,
           subtotalInMinor: subtotal.toString(),
           taxInMinor: tax.toString(),
           shippingInMinor: shipping.toString(),
@@ -205,10 +212,14 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         },
       });
 
-      return strapi.db.query('api::order.order').findOne({
+      const loaded = await strapi.db.query('api::order.order').findOne({
         where: { id: orderId },
         populate: ['lineItems', 'shipments'],
       });
+      return {
+        order: loaded,
+        continuationSecret: checkoutContinuationSecret,
+      };
     });
   },
 
