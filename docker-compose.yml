@@ -1,17 +1,68 @@
-# Local development: SQLite (default), hot-reload, bind-mounted source + Vite storefront.
+# Sparerow Engine — Strapi backend + Vite storefront (single Compose project).
 #
-# First run:
+# Quick start (dev, SQLite):
+#   cp docker-compose.env.example .env
 #   cp spare-parts-backend/.env.docker.example spare-parts-backend/.env
-#   Edit secrets in .env — do not commit .env
+#   Edit secrets in spare-parts-backend/.env
+#   docker compose up --build
 #
-# Storefront → Strapi GraphQL: defaults to http://localhost:1337/graphql (browser calls host port).
-# Override: VITE_STOREFRONT_GRAPHQL_ENDPOINT=https://api.example.com/graphql docker compose up
+# Profiles:
+#   dev            — hot-reload Strapi + Vite (default if you copy docker-compose.env.example → .env)
+#   with-postgres  — Postgres for dev; set DATABASE_CLIENT=postgres and DATABASE_URL in spare-parts-backend/.env
+#   production     — Postgres + production Strapi + nginx storefront (no dev containers)
 #
-# Postgres alongside Strapi (prod-like DB):
-#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build
+# Examples:
+#   docker compose --profile dev --profile with-postgres up --build
+#   docker compose --profile production up --build -d
 #
+name: spare-parts-engine
+
 services:
+  postgres:
+    profiles: ["with-postgres"]
+    container_name: spare-parts-postgres-dev
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-strapi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-strapi}
+      POSTGRES_DB: ${POSTGRES_DB:-strapi_spare}
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-strapi} -d ${POSTGRES_DB:-strapi_spare}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres_prod:
+    profiles: ["production"]
+    container_name: spare-parts-postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-strapi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-strapi}
+      POSTGRES_DB: ${POSTGRES_DB:-strapi_spare}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-strapi} -d ${POSTGRES_DB:-strapi_spare}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   strapi:
+    profiles: ["dev"]
     container_name: spare-parts-strapi-dev
     build:
       context: ./spare-parts-backend
@@ -30,8 +81,13 @@ services:
       - strapi_node_modules:/app/node_modules
     entrypoint: ["sh", "/app/docker-entrypoint.dev.sh"]
     command: ["npm", "run", "develop"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
 
   storefront:
+    profiles: ["dev"]
     container_name: spare-parts-storefront-dev
     build:
       context: ./storefront
@@ -50,8 +106,47 @@ services:
     depends_on:
       - strapi
 
+  strapi_prod:
+    profiles: ["production"]
+    container_name: spare-parts-strapi
+    build:
+      context: ./spare-parts-backend
+      dockerfile: Dockerfile
+      target: production
+    restart: unless-stopped
+    ports:
+      - "${STRAPI_PORT:-1337}:1337"
+    env_file:
+      - ./spare-parts-backend/.env
+    environment:
+      HOST: 0.0.0.0
+      DATABASE_CLIENT: postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-strapi}:${POSTGRES_PASSWORD:-strapi}@postgres_prod:5432/${POSTGRES_DB:-strapi_spare}
+    depends_on:
+      postgres_prod:
+        condition: service_healthy
+
+  storefront_prod:
+    profiles: ["production"]
+    container_name: spare-parts-storefront
+    build:
+      context: ./storefront
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-http://localhost:1337/graphql}
+    restart: unless-stopped
+    ports:
+      - "${STOREFRONT_PORT:-8080}:80"
+    depends_on:
+      - strapi_prod
+
 volumes:
   strapi_node_modules:
     name: spare_parts_strapi_node_modules
   storefront_node_modules:
     name: spare_parts_storefront_node_modules
+  postgres_dev_data:
+    name: spare_parts_postgres_dev_data
+  postgres_data:
+    name: spare_parts_postgres_data

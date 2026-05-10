@@ -20,14 +20,15 @@ npm run develop    # Starts dev server with hot-reload on port 1337
 
 ### Docker (optional)
 
-From the repository root:
+One Compose file at the repo root (`docker-compose.yml`) runs **Strapi** and the **storefront** together.
 
-- **Development (SQLite + Vite storefront):** copy `spare-parts-backend/.env.docker.example` to `spare-parts-backend/.env`, replace placeholder secrets, then run `docker compose up --build`. Starts Strapi on port **1337** and the storefront dev server on **8080** (`STOREFRONT_PORT`). Source for both apps is bind-mounted with named volumes for `node_modules`. Strapi admin: http://localhost:1337/admin — storefront: http://localhost:8080
-- **`VITE_STOREFRONT_GRAPHQL_ENDPOINT`:** must be a URL the **browser** can reach (default `http://localhost:1337/graphql` when Compose publishes Strapi on localhost). Set at compose time for dev; for `docker-compose.prod.yml` it is a **build-arg** baked into the static bundle.
-- **Development with Postgres:** `docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build`
-- **Production-style stack:** `docker compose -f docker-compose.prod.yml up --build` — nginx serves the storefront on `${STOREFRONT_PORT:-8080}` → container port 80.
+- **Setup:** copy `docker-compose.env.example` to `.env` in the repo root (enables the `dev` profile by default). Copy `spare-parts-backend/.env.docker.example` to `spare-parts-backend/.env` and replace placeholder secrets. Then `docker compose up --build`.
+- **Development (`dev` profile):** Strapi on **1337**, Vite storefront on **8080** (`STOREFRONT_PORT`). Source is bind-mounted; `node_modules` use named volumes. Admin: http://localhost:1337/admin — storefront: http://localhost:8080
+- **`VITE_STOREFRONT_GRAPHQL_ENDPOINT`:** must be a URL the **browser** can reach (default `http://localhost:1337/graphql`). For the `production` profile it is a **build-arg** baked into the static storefront bundle.
+- **Postgres in dev:** `docker compose --profile dev --profile with-postgres up --build` and set `DATABASE_CLIENT=postgres` plus `DATABASE_URL=postgresql://strapi:strapi@postgres:5432/strapi_spare` in `spare-parts-backend/.env` (see comments in `.env.docker.example`).
+- **Production-style stack:** `docker compose --profile production up --build -d` — `postgres_prod`, production Strapi, nginx storefront on host `${STOREFRONT_PORT:-8080}` → container port 80.
 
-Images: `spare-parts-backend/Dockerfile` and `storefront/Dockerfile` each expose `development` and `production` targets. Poll-based file watching is enabled for Strapi and the storefront in Compose where relevant.
+Images: `spare-parts-backend/Dockerfile` and `storefront/Dockerfile` (`development` and `production` targets). Poll-based file watching is enabled for dev services.
 
 ### Database
 
