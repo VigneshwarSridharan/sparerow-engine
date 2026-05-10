@@ -1,9 +1,10 @@
-# Production-oriented stack: Postgres + Strapi (`target: production`).
+# Production-oriented stack: Postgres + Strapi + nginx-hosted storefront.
 # Usage:
 #   cp spare-parts-backend/.env.docker.example spare-parts-backend/.env
 #   Fill in production secrets in .env (APP_KEYS, JWT secrets, STRAPI_INTERNAL_API_KEY, etc.)
 #   docker compose -f docker-compose.prod.yml up --build -d
 #
+# Storefront bundle: set VITE_STOREFRONT_GRAPHQL_ENDPOINT to a browser-reachable GraphQL URL before build (default localhost:1337).
 # DATABASE_URL below overrides .env for container-to-container networking.
 services:
   postgres:
@@ -44,6 +45,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  storefront:
+    container_name: spare-parts-storefront
+    build:
+      context: ./storefront
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-http://localhost:1337/graphql}
+    restart: unless-stopped
+    ports:
+      - "${STOREFRONT_PORT:-8080}:80"
+    depends_on:
+      - strapi
 
 volumes:
   postgres_data:
