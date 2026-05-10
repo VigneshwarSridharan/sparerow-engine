@@ -67,6 +67,8 @@ export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onNavigate('/account')}>Account</DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onNavigate('/account/orders')}>My orders</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onNavigate('/account/addresses')}>Addresses</DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -115,6 +117,9 @@ export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
             )}
             {token && (
               <>
+                <Button variant="ghost" className="justify-start" onClick={() => { onNavigate('/account'); setMobileMenuOpen(false); }}>
+                  Account
+                </Button>
                 <Button variant="ghost" className="justify-start" onClick={() => { onNavigate('/account/orders'); setMobileMenuOpen(false); }}>
                   My orders
                 </Button>
