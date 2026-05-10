@@ -14,19 +14,20 @@ npm run build      # Compiles TS + builds Strapi admin panel (~20s)
 npm run develop    # Starts dev server with hot-reload on port 1337
 ```
 
+- The build step is required before the first `develop` run (compiles admin panel).
+- After the initial build, `npm run develop` handles TS recompilation automatically.
+- Admin panel: http://localhost:1337/admin
+
 ### Docker (optional)
 
 From the repository root:
 
-- **Development (SQLite, hot-reload):** copy `spare-parts-backend/.env.docker.example` to `spare-parts-backend/.env`, replace placeholder secrets, then run `docker compose up --build`. Source is bind-mounted; `node_modules` live in a named volume. Admin: http://localhost:1337/admin
+- **Development (SQLite + Vite storefront):** copy `spare-parts-backend/.env.docker.example` to `spare-parts-backend/.env`, replace placeholder secrets, then run `docker compose up --build`. Starts Strapi on port **1337** and the storefront dev server on **8080** (`STOREFRONT_PORT`). Source for both apps is bind-mounted with named volumes for `node_modules`. Strapi admin: http://localhost:1337/admin — storefront: http://localhost:8080
+- **`VITE_STOREFRONT_GRAPHQL_ENDPOINT`:** must be a URL the **browser** can reach (default `http://localhost:1337/graphql` when Compose publishes Strapi on localhost). Set at compose time for dev; for `docker-compose.prod.yml` it is a **build-arg** baked into the static bundle.
 - **Development with Postgres:** `docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build`
-- **Production-style stack:** `docker compose -f docker-compose.prod.yml up --build`
+- **Production-style stack:** `docker compose -f docker-compose.prod.yml up --build` — nginx serves the storefront on `${STOREFRONT_PORT:-8080}` → container port 80.
 
-The Strapi image is defined in `spare-parts-backend/Dockerfile` (`development` and `production` targets). Poll-based file watching is enabled in Compose for reliability on Docker Desktop.
-
-- The build step is required before the first `develop` run (compiles admin panel).
-- After the initial build, `npm run develop` handles TS recompilation automatically.
-- Admin panel: http://localhost:1337/admin
+Images: `spare-parts-backend/Dockerfile` and `storefront/Dockerfile` each expose `development` and `production` targets. Poll-based file watching is enabled for Strapi and the storefront in Compose where relevant.
 
 ### Database
 
