@@ -44,21 +44,21 @@ const App = () => (
                       <Route path="products/:productId" element={<ProductDetailsPage />} />
                       <Route path="about" element={<AboutPage />} />
                       <Route path="wishlist" element={<WishlistPage />} />
-                    </Route>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route
-                      path="/account"
-                      element={
-                        <RequireCustomerAuth>
-                          <AccountLayout />
-                        </RequireCustomerAuth>
-                      }
-                    >
-                      <Route index element={<Navigate to="orders" replace />} />
-                      <Route path="orders" element={<AccountOrdersPage />} />
-                      <Route path="orders/:orderId" element={<AccountOrderDetailPage />} />
-                      <Route path="addresses" element={<AccountAddressesPage />} />
+                      <Route path="login" element={<LoginPage />} />
+                      <Route path="register" element={<RegisterPage />} />
+                      <Route
+                        path="account"
+                        element={
+                          <RequireCustomerAuth>
+                            <AccountLayout />
+                          </RequireCustomerAuth>
+                        }
+                      >
+                        <Route index element={<Navigate to="orders" replace />} />
+                        <Route path="orders" element={<AccountOrdersPage />} />
+                        <Route path="orders/:orderId" element={<AccountOrderDetailPage />} />
+                        <Route path="addresses" element={<AccountAddressesPage />} />
+                      </Route>
                     </Route>
                     <Route path="*" element={<NotFound />} />
                   </Routes>
