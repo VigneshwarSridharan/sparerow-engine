@@ -3,23 +3,27 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { products, brands, models } from '@/data/seedData';
 import { getPartImage } from '@/lib/partImages';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { ProductCard } from '@/components/ProductCard';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 export default function ProductDetailsPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
+  const { products, brands, models, isLoading } = useStorefrontData();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const product = useMemo(() => products.find((item) => item.id === productId), [productId]);
+  const product = useMemo(
+    () => products.find((item) => item.id === productId),
+    [products, productId]
+  );
 
-  if (!product) {
+  if (!product && !isLoading) {
     return (
       <div className="container py-20 text-center">
         <p className="text-lg text-muted-foreground">Product not found.</p>
@@ -28,13 +32,17 @@ export default function ProductDetailsPage() {
     );
   }
 
+  if (!product) {
+    return <div className="container py-20 text-center text-muted-foreground">Loading product details…</div>;
+  }
+
   const relatedProducts = products
     .filter((item) => item.id !== product.id && (item.brandId === product.brandId || item.partType === product.partType))
     .slice(0, 4);
 
   const brand = brands.find((item) => item.id === product.brandId);
   const model = models.find((item) => item.id === product.modelId);
-  const partImage = getPartImage(product.partType);
+  const heroImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
 
   return (
     <div className="container py-8">
@@ -48,7 +56,7 @@ export default function ProductDetailsPage() {
 
       <div className="grid md:grid-cols-2 gap-8 items-start">
         <div className="rounded-2xl border bg-muted/40 p-8 flex items-center justify-center min-h-[360px]">
-          <img src={partImage} alt={product.partType} className="max-h-80 object-contain" />
+          <img src={heroImage} alt={product.partType} className="max-h-80 object-contain" />
         </div>
 
         <div>

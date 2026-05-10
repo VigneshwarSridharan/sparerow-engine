@@ -149,6 +149,7 @@ export default factories.createCoreController('api::commerce.singleton-placehold
         lines: (body.lines as []) || [],
         contactPhone: String(body.contactPhone || ''),
         contactEmail: body.contactEmail != null ? String(body.contactEmail) : undefined,
+        promoCode: body.promoCode != null ? String(body.promoCode) : undefined,
         customerId,
         shippingAddressId: body.shippingAddressId != null ? Number(body.shippingAddressId) : undefined,
         guestShipping: body.guestShipping as Record<string, unknown> | undefined,

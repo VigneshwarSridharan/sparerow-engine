@@ -5,17 +5,22 @@ import { BrandCard } from '@/components/BrandCard';
 import { ProductCard } from '@/components/ProductCard';
 import { SmartPartFinder } from '@/components/SmartPartFinder';
 import { Testimonials, TrustBadges } from '@/components/Footer';
-import { brands, partTypes, products } from '@/data/seedData';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
+  const { brands, products, partTypes, isLoading } = useStorefrontData();
 
   const featuredProducts = products.filter((p) => p.featured).slice(0, 8);
   const bestSellers = products.filter((p) => p.bestSeller).slice(0, 8);
   const newArrivals = products.filter((p) => p.newArrival).slice(0, 8);
+
+  if (isLoading) {
+    return <div className="container py-16 text-center text-muted-foreground">Loading storefront catalog…</div>;
+  }
 
   return (
     <>

@@ -2,15 +2,27 @@ import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
 import { availableToSell, assertSlug } from '../../../lib/validators';
 
-function serializeProduct(p: Record<string, unknown>) {
+function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
   const onHand = Number(p.quantityOnHand ?? 0);
   const reserved = Number(p.quantityReserved ?? 0);
+  const img = p.primaryImage;
+  let primaryImageUrl: string | null = null;
+  if (img && typeof img === 'object' && 'url' in img && typeof (img as { url: unknown }).url === 'string') {
+    const url = (img as { url: string }).url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      primaryImageUrl = url;
+    } else {
+      const base = String(strapi.config.get('server.url') ?? '').replace(/\/+$/, '');
+      primaryImageUrl = `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+  }
   return {
     id: p.id,
     documentId: p.documentId,
     sku: p.sku,
     name: p.name,
     description: p.description,
+    primaryImageUrl,
     priceInMinor: String(p.priceInMinor ?? '0'),
     quantityOnHand: onHand,
     quantityReserved: reserved,
@@ -43,6 +55,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     });
   },
 
+  async listAllModels() {
+    return strapi.db.query('api::part-model.part-model').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      populate: ['brand'],
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+  },
+
   async listProducts(brandSlug: string, modelSlug: string) {
     assertSlug('brandSlug', brandSlug);
     assertSlug('modelSlug', modelSlug);
@@ -56,10 +77,82 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     if (!model) throw new AppError(404, 'MODEL_NOT_FOUND', 'Model not found');
     const products = await strapi.db.query('api::product.product').findMany({
       where: { partModel: model.id, isActive: true },
-      populate: ['partCategory'],
+      populate: ['partCategory', 'primaryImage'],
       orderBy: { name: 'asc' },
     });
-    return products.map((row) => serializeProduct(row as unknown as Record<string, unknown>));
+    return products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
+  },
+
+  async listCategories() {
+    return strapi.db.query('api::part-category.part-category').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+  },
+
+  async listAllProducts(filters?: {
+    brandSlug?: string;
+    modelSlug?: string;
+    categorySlug?: string;
+    search?: string;
+    inStockOnly?: boolean;
+  }) {
+    const where: Record<string, unknown> = { isActive: true };
+    if (filters?.brandSlug) {
+      assertSlug('brandSlug', filters.brandSlug);
+      const brand = await strapi.db.query('api::brand.brand').findOne({
+        where: { slug: filters.brandSlug, isActive: true },
+      });
+      if (!brand) throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
+      where.partModel = { brand: brand.id };
+    }
+    if (filters?.modelSlug) {
+      assertSlug('modelSlug', filters.modelSlug);
+      const model = await strapi.db.query('api::part-model.part-model').findOne({
+        where: { slug: filters.modelSlug, isActive: true },
+      });
+      if (!model) throw new AppError(404, 'MODEL_NOT_FOUND', 'Model not found');
+      where.partModel = model.id;
+    }
+    if (filters?.categorySlug) {
+      assertSlug('categorySlug', filters.categorySlug);
+      const category = await strapi.db.query('api::part-category.part-category').findOne({
+        where: { slug: filters.categorySlug, isActive: true },
+      });
+      if (!category) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category not found');
+      where.partCategory = category.id;
+    }
+    if (filters?.search) {
+      const q = String(filters.search).trim();
+      if (q.length > 0) {
+        where.$or = [
+          { name: { $containsi: q } },
+          { sku: { $containsi: q } },
+          { description: { $containsi: q } },
+        ];
+      }
+    }
+    if (filters?.inStockOnly) {
+      where.quantityOnHand = { $gt: 0 };
+    }
+
+    const products = await strapi.db.query('api::product.product').findMany({
+      where,
+      populate: {
+        partCategory: true,
+        primaryImage: true,
+        partModel: {
+          populate: { brand: true },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+    const serialized = products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
+    if (filters?.inStockOnly) {
+      return serialized.filter((product) => Number(product.availableToSell) > 0);
+    }
+    return serialized;
   },
 
   async getProductByBrandModelSku(brandSlug: string, modelSlug: string, sku: string) {
@@ -76,20 +169,20 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, partModel: model.id, isActive: true },
-      populate: ['partCategory'],
+      populate: ['partCategory', 'primaryImage'],
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
-    return serializeProduct(p as unknown as Record<string, unknown>);
+    return serializeProduct(strapi, p as unknown as Record<string, unknown>);
   },
 
   async getProductBySku(sku: string) {
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, isActive: true },
-      populate: ['partModel', 'partCategory'],
+      populate: ['partModel', 'partCategory', 'primaryImage'],
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
-    return serializeProduct(p as unknown as Record<string, unknown>);
+    return serializeProduct(strapi, p as unknown as Record<string, unknown>);
   },
 
   async getCmsBlock(slug: string) {

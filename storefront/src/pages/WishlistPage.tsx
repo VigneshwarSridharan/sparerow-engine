@@ -1,12 +1,13 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/ProductCard';
-import { products } from '@/data/seedData';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 export default function WishlistPage() {
   const navigate = useNavigate();
+  const { products, isLoading } = useStorefrontData();
   const { wishlistIds } = useWishlist();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const wishlistProducts = products.filter((product) => wishlistIds.includes(product.id));
@@ -14,6 +15,7 @@ export default function WishlistPage() {
   return (
     <div className="container py-8">
       <h1 className="text-3xl font-bold mb-2">My Wishlist</h1>
+      {isLoading && <p className="text-sm text-muted-foreground mb-2">Syncing wishlist catalog…</p>}
       <p className="text-muted-foreground mb-8">{wishlistProducts.length} items saved</p>
       {wishlistProducts.length === 0 ? (
         <div className="text-center py-20">

@@ -2,8 +2,8 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
-import { products, brands, models } from '@/data/seedData';
 import { Product } from '@/types';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface SearchBarProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ isOpen, onClose, onProductSelect, onNavigateToCatalog }: SearchBarProps) {
+  const { products, brands, models } = useStorefrontData();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 

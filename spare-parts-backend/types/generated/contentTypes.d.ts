@@ -681,6 +681,9 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::order.order'> &
       Schema.Attribute.Private;
+    promoCode: Schema.Attribute.String;
+    promoDiscountInMinor: Schema.Attribute.BigInteger &
+      Schema.Attribute.DefaultTo<'0'>;
     providerOrderId: Schema.Attribute.String & Schema.Attribute.Unique;
     providerPaymentId: Schema.Attribute.String & Schema.Attribute.Unique;
     publishedAt: Schema.Attribute.DateTime;
@@ -820,6 +823,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       'api::part-model.part-model'
     >;
     priceInMinor: Schema.Attribute.BigInteger & Schema.Attribute.Required;
+    primaryImage: Schema.Attribute.Media<'images'>;
     publishedAt: Schema.Attribute.DateTime;
     quantityOnHand: Schema.Attribute.Integer &
       Schema.Attribute.Required &
@@ -830,6 +834,53 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     sku: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiPromoCodePromoCode extends Struct.CollectionTypeSchema {
+  collectionName: 'promo_codes';
+  info: {
+    displayName: 'Promo Code';
+    pluralName: 'promo-codes';
+    singularName: 'promo-code';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    code: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.String;
+    discountPercent: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<0>;
+    endsAt: Schema.Attribute.DateTime;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::promo-code.promo-code'
+    > &
+      Schema.Attribute.Private;
+    maxDiscountInMinor: Schema.Attribute.BigInteger;
+    minOrderSubtotalInMinor: Schema.Attribute.BigInteger &
+      Schema.Attribute.DefaultTo<'0'>;
+    publishedAt: Schema.Attribute.DateTime;
+    startsAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1437,6 +1488,7 @@ declare module '@strapi/strapi' {
       'api::part-category.part-category': ApiPartCategoryPartCategory;
       'api::part-model.part-model': ApiPartModelPartModel;
       'api::product.product': ApiProductProduct;
+      'api::promo-code.promo-code': ApiPromoCodePromoCode;
       'api::shipment.shipment': ApiShipmentShipment;
       'api::webhook-delivery.webhook-delivery': ApiWebhookDeliveryWebhookDelivery;
       'plugin::content-releases.release': PluginContentReleasesRelease;

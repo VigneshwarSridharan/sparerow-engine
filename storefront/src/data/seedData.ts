@@ -1,6 +1,6 @@
 // Auto-generated seed data from All_Brands_Parts.xlsx
 
-import { Brand, Model, Product } from "@/types";
+import type { Brand, Model, Product } from "../types";
 
 export const brands: Brand[] = [
   { id: "brand-1", name: "Apple", slug: "apple", logo: "/placeholder.svg", productCount: 0 },

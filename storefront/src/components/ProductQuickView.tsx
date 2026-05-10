@@ -1,15 +1,16 @@
 import { Product } from '@/types';
-import { X, ShoppingCart, Heart, Star, Shield, RotateCcw, Truck } from 'lucide-react';
+import { ShoppingCart, Heart, Star, Shield, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { useRecentlyViewed } from '@/contexts/RecentlyViewedContext';
-import { brands, models } from '@/data/seedData';
 import { cn } from '@/lib/utils';
+import { getPartImage } from '@/lib/partImages';
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface ProductQuickViewProps {
   product: Product | null;
@@ -21,6 +22,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToRecentlyViewed } = useRecentlyViewed();
+  const { brands, models } = useStorefrontData();
   const [qty, setQty] = useState(1);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
   const brand = brands.find(b => b.id === product.brandId);
   const model = models.find(m => m.id === product.modelId);
+  const previewSrc = product.image || getPartImage(product.partType);
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -40,11 +43,15 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
         </SheetHeader>
 
         <div className="p-6 space-y-6">
-          <div className="aspect-square rounded-xl bg-muted flex items-center justify-center">
-            <div className="text-center">
-              <span className="text-5xl font-bold text-muted-foreground/20">{product.partType.slice(0, 2).toUpperCase()}</span>
-              <p className="text-sm text-muted-foreground/40 mt-2">{product.partType}</p>
-            </div>
+          <div className="aspect-square rounded-xl bg-muted flex items-center justify-center p-4">
+            {previewSrc ? (
+              <img src={previewSrc} alt={product.partType} className="max-h-full max-w-full object-contain" loading="lazy" />
+            ) : (
+              <div className="text-center">
+                <span className="text-5xl font-bold text-muted-foreground/20">{product.partType.slice(0, 2).toUpperCase()}</span>
+                <p className="text-sm text-muted-foreground/40 mt-2">{product.partType}</p>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-1.5">

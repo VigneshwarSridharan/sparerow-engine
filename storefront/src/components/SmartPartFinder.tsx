@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Check, X, ArrowRight, Settings2 } from 'lucide-react';
+import { Check, X, Settings2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { brands, models, products, partTypes } from '@/data/seedData';
 import { ProductCard } from '@/components/ProductCard';
 import { Product } from '@/types';
 import { getPartImage } from '@/lib/partImages';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 import appleLogo from '@/assets/brands/apple-logo.png';
 import samsungLogo from '@/assets/brands/samsung-logo.png';
@@ -33,6 +33,7 @@ function scrollStepIntoView(el: HTMLElement | null) {
 }
 
 export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
+  const { brands, models, products, partTypes } = useStorefrontData();
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedPartType, setSelectedPartType] = useState<string | null>(null);
@@ -62,21 +63,21 @@ export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
 
   const filteredModels = useMemo(
     () => (selectedBrandId ? models.filter(m => m.brandId === selectedBrandId) : []),
-    [selectedBrandId]
+    [selectedBrandId, models]
   );
 
   const availablePartTypes = useMemo(() => {
     if (!selectedModelId) return [];
     const types = new Set(products.filter(p => p.modelId === selectedModelId).map(p => p.partType));
     return partTypes.filter(pt => types.has(pt));
-  }, [selectedModelId]);
+  }, [selectedModelId, products, partTypes]);
 
   const resultProducts = useMemo(() => {
     if (!selectedBrandId || !selectedModelId || !selectedPartType) return [];
     return products.filter(
       p => p.brandId === selectedBrandId && p.modelId === selectedModelId && p.partType === selectedPartType
     );
-  }, [selectedBrandId, selectedModelId, selectedPartType]);
+  }, [selectedBrandId, selectedModelId, selectedPartType, products]);
 
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
   const selectedModel = models.find(m => m.id === selectedModelId);

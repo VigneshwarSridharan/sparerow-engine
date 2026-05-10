@@ -1,17 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FilterDrawer } from '@/components/FilterDrawer';
 import { ProductCard } from '@/components/ProductCard';
-import { brands, models, products } from '@/data/seedData';
 import { FilterState, SortOption } from '@/types';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
-const maxPrice = Math.max(...products.map((product) => product.price));
-
-function buildInitialFilters(searchParams: URLSearchParams): FilterState {
+function buildInitialFilters(searchParams: URLSearchParams, maxPrice: number): FilterState {
   return {
     brandId: searchParams.get('brand') || undefined,
     modelId: searchParams.get('model') || undefined,
@@ -24,11 +22,19 @@ function buildInitialFilters(searchParams: URLSearchParams): FilterState {
 }
 
 export default function ProductListingPage() {
+  const { brands, models, products, isLoading } = useStorefrontData();
+  const maxPrice = Math.max(0, ...products.map((product) => product.price));
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>(() => buildInitialFilters(searchParams));
+  const [filters, setFilters] = useState<FilterState>(() => buildInitialFilters(searchParams, maxPrice));
+
+  useEffect(() => {
+    if (maxPrice > 0 && filters.priceRange[1] === 0) {
+      setFilters((prev) => ({ ...prev, priceRange: [0, maxPrice] }));
+    }
+  }, [maxPrice, filters.priceRange]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -72,7 +78,7 @@ export default function ProductListingPage() {
     }
 
     return result;
-  }, [filters]);
+  }, [filters, products, brands, models]);
 
   const updateFilters = (nextFilters: FilterState) => {
     setFilters(nextFilters);
@@ -86,6 +92,7 @@ export default function ProductListingPage() {
 
   return (
     <div className="container py-8">
+      {isLoading && <p className="mb-4 text-sm text-muted-foreground">Syncing product catalog…</p>}
       <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
         <button onClick={() => navigate('/')} className="hover:text-foreground">Home</button>
         <ChevronRight className="h-3 w-3" />
@@ -124,7 +131,7 @@ export default function ProductListingPage() {
             <div className="text-center py-20">
               <p className="text-lg text-muted-foreground">No products found</p>
               <p className="text-sm text-muted-foreground mt-1">Try adjusting your filters</p>
-              <Button variant="outline" className="mt-4" onClick={() => updateFilters(buildInitialFilters(new URLSearchParams()))}>
+              <Button variant="outline" className="mt-4" onClick={() => updateFilters(buildInitialFilters(new URLSearchParams(), maxPrice))}>
                 Clear Filters
               </Button>
             </div>
