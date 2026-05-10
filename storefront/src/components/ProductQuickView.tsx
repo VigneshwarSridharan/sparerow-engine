@@ -1,5 +1,5 @@
 import { Product } from '@/types';
-import { X, ShoppingCart, Heart, Star, Shield, RotateCcw, Truck } from 'lucide-react';
+import { ShoppingCart, Heart, Star, Shield, RotateCcw, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';

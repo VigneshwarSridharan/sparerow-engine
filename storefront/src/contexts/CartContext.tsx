@@ -46,7 +46,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { product, quantity }];
     });
-    
+
     setIsCartOpen(true);
   }, []);
 

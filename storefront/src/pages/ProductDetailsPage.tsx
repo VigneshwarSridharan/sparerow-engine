@@ -18,7 +18,10 @@ export default function ProductDetailsPage() {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const product = useMemo(() => products.find((item) => item.id === productId), [productId]);
+  const product = useMemo(
+    () => products.find((item) => item.id === productId),
+    [products, productId]
+  );
 
   if (!product && !isLoading) {
     return (

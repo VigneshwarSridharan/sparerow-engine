@@ -78,7 +78,7 @@ export default function ProductListingPage() {
     }
 
     return result;
-  }, [filters]);
+  }, [filters, products, brands, models]);
 
   const updateFilters = (nextFilters: FilterState) => {
     setFilters(nextFilters);

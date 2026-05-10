@@ -1,4 +1,4 @@
-import { X, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
@@ -114,7 +114,6 @@ export function FilterDrawer({ filters, onFiltersChange, isOpen, onClose, maxPri
 
   return (
     <>
-      {/* Mobile filter drawer */}
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <SheetContent side="left" className="w-80 overflow-y-auto">
           <SheetHeader>
@@ -124,7 +123,6 @@ export function FilterDrawer({ filters, onFiltersChange, isOpen, onClose, maxPri
         </SheetContent>
       </Sheet>
 
-      {/* Desktop sidebar - always visible */}
       <div className="hidden lg:block w-64 shrink-0">
         <div className="sticky top-20 bg-card rounded-xl border p-4 overflow-y-auto max-h-[calc(100vh-6rem)]">
           <h3 className="font-bold text-base mb-4 flex items-center gap-2">
