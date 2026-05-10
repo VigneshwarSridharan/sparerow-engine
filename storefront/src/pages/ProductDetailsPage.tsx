@@ -42,7 +42,7 @@ export default function ProductDetailsPage() {
 
   const brand = brands.find((item) => item.id === product.brandId);
   const model = models.find((item) => item.id === product.modelId);
-  const partImage = getPartImage(product.partType);
+  const heroImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
 
   return (
     <div className="container py-8">
@@ -56,7 +56,7 @@ export default function ProductDetailsPage() {
 
       <div className="grid md:grid-cols-2 gap-8 items-start">
         <div className="rounded-2xl border bg-muted/40 p-8 flex items-center justify-center min-h-[360px]">
-          <img src={partImage} alt={product.partType} className="max-h-80 object-contain" />
+          <img src={heroImage} alt={product.partType} className="max-h-80 object-contain" />
         </div>
 
         <div>

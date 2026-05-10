@@ -96,6 +96,7 @@ export default {
           uiBestSeller: Boolean!
           uiNewArrival: Boolean!
           uiWarranty: String!
+          primaryImageUrl: String
         }
 
         type StorefrontPromoCode {

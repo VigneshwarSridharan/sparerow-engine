@@ -23,6 +23,9 @@
     "description": {
       "type": "text"
     },
+    "primaryImageUrl": {
+      "type": "string"
+    },
     "priceInMinor": {
       "type": "biginteger",
       "required": true

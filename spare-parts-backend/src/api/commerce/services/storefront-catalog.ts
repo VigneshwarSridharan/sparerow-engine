@@ -11,6 +11,7 @@ function serializeProduct(p: Record<string, unknown>) {
     sku: p.sku,
     name: p.name,
     description: p.description,
+    primaryImageUrl: p.primaryImageUrl ?? null,
     priceInMinor: String(p.priceInMinor ?? '0'),
     quantityOnHand: onHand,
     quantityReserved: reserved,

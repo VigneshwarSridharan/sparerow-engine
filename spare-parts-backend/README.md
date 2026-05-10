@@ -13,7 +13,7 @@ npm run build
 npm run develop
 ```
 
-Seed sample data (runs `build` first, then `scripts/seed.cjs`):
+Seed sample data (runs `build` first, then `scripts/seed.ts` using catalog from `../storefront/src/data/seedData.ts`):
 
 ```bash
 npm run seed

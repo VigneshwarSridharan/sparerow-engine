@@ -21,7 +21,7 @@ export function ProductCard({ product, onQuickView, onViewDetails }: ProductCard
   const brand = brands.find(b => b.id === product.brandId);
   const model = models.find(m => m.id === product.modelId);
   const inWishlist = isInWishlist(product.id);
-  const partImage = getPartImage(product.partType);
+  const partImage = product.image ? product.image : getPartImage(product.partType);
 
   return (
     <div

@@ -13,7 +13,7 @@
     "strapi": "strapi",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "npm run build && node ./scripts/seed.cjs",
+    "seed": "npm run build && npx tsx ./scripts/seed.ts",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
   },
@@ -41,6 +41,7 @@
     "@types/raw-body": "^2.1.4",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.5"
   },

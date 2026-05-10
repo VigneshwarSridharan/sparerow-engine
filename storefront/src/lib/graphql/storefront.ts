@@ -1,5 +1,6 @@
 import { Brand, Model, Product } from '@/types';
 import { graphqlRequest } from './client';
+import { resolveProductImageUrl } from '@/lib/strapiAssets';
 
 type BootstrapResponse = {
   storefrontCatalogBootstrap: {
@@ -31,6 +32,7 @@ type BootstrapResponse = {
       uiFeatured: boolean;
       uiBestSeller: boolean;
       uiNewArrival: boolean;
+      primaryImageUrl?: string | null;
     }>;
     promoCodes: Array<{
       code: string;
@@ -90,6 +92,7 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
         uiFeatured
         uiBestSeller
         uiNewArrival
+        primaryImageUrl
       }
       promoCodes { code discountPercent minOrderSubtotalInMinor maxDiscountInMinor }
     }
@@ -143,7 +146,7 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
     sku: product.sku,
     inStock: product.availableToSell > 0,
     stockQty: product.availableToSell,
-    image: '/placeholder.svg',
+    image: resolveProductImageUrl(product.primaryImageUrl, product.categoryName || 'Other'),
     images: [],
     description: product.description || 'No description available.',
     warranty: product.uiWarranty,
