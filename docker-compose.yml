@@ -1,0 +1,33 @@
+# Local development: SQLite (default), hot-reload, bind-mounted source.
+#
+# First run:
+#   cp spare-parts-backend/.env.docker.example spare-parts-backend/.env
+#   Edit secrets in .env — do not commit .env
+#
+# Postgres alongside Strapi (prod-like DB):
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build
+#
+services:
+  strapi:
+    container_name: spare-parts-strapi-dev
+    build:
+      context: ./spare-parts-backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "${STRAPI_PORT:-1337}:1337"
+    env_file:
+      - ./spare-parts-backend/.env
+    environment:
+      HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./spare-parts-backend:/app
+      - strapi_node_modules:/app/node_modules
+    entrypoint: ["sh", "/app/docker-entrypoint.dev.sh"]
+    command: ["npm", "run", "develop"]
+
+volumes:
+  strapi_node_modules:
+    name: spare_parts_strapi_node_modules

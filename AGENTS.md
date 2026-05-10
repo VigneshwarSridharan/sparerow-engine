@@ -14,6 +14,16 @@ npm run build      # Compiles TS + builds Strapi admin panel (~20s)
 npm run develop    # Starts dev server with hot-reload on port 1337
 ```
 
+### Docker (optional)
+
+From the repository root:
+
+- **Development (SQLite, hot-reload):** copy `spare-parts-backend/.env.docker.example` to `spare-parts-backend/.env`, replace placeholder secrets, then run `docker compose up --build`. Source is bind-mounted; `node_modules` live in a named volume. Admin: http://localhost:1337/admin
+- **Development with Postgres:** `docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build`
+- **Production-style stack:** `docker compose -f docker-compose.prod.yml up --build`
+
+The Strapi image is defined in `spare-parts-backend/Dockerfile` (`development` and `production` targets). Poll-based file watching is enabled in Compose for reliability on Docker Desktop.
+
 - The build step is required before the first `develop` run (compiles admin panel).
 - After the initial build, `npm run develop` handles TS recompilation automatically.
 - Admin panel: http://localhost:1337/admin

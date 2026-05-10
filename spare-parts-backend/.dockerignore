@@ -1,0 +1,28 @@
+# Dependencies & caches
+node_modules
+npm-debug.log*
+
+# Build outputs (rebuilt in image or on develop)
+dist
+build
+.cache
+.strapi
+.tsbuildinfo
+
+# Local data & secrets
+.tmp
+.env
+.env.*
+!.env.docker.example
+
+# Git & IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Tests & docs (not needed to run Strapi)
+coverage
+*.md
+!README.md
+docs
