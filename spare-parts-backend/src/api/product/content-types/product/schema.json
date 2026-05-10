@@ -23,8 +23,11 @@
     "description": {
       "type": "text"
     },
-    "primaryImageUrl": {
-      "type": "string"
+    "primaryImage": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
     },
     "priceInMinor": {
       "type": "biginteger",

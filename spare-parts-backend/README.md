@@ -13,7 +13,7 @@ npm run build
 npm run develop
 ```
 
-Seed sample data (runs `build` first, then `scripts/seed.ts` using catalog from `../storefront/src/data/seedData.ts`):
+Seed sample data (runs `build` first, bundles `scripts/seed.ts` with esbuild, then seeds from `../storefront/src/data/seedData.ts` and uploads product images via Strapi Media Library using filenames from `../storefront/src/lib/partTypeMediaFiles.ts`):
 
 ```bash
 npm run seed

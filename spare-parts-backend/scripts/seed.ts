@@ -1,14 +1,14 @@
 /**
- * Loads catalog rows from the storefront app (`../storefront/src/data/seedData.ts`) so
- * the Strapi database stays aligned with the UI seed file. Part images are copied from
- * `storefront/src/assets/parts` into `public/parts` and `primaryImageUrl` matches
- * `storefront/src/lib/partImages.ts` via `src/lib/part-image-paths.ts`.
+ * Loads catalog rows from the storefront (`../storefront/src/data/seedData.ts`) so
+ * the Strapi DB matches the UI seed file. Part photos are uploaded via Strapi Media
+ * Library (same filenames as `storefront/src/lib/partTypeMediaFiles.ts` / `partImages.ts`).
  */
 import path from 'path';
 import fs from 'fs';
+import type { Core } from '@strapi/strapi';
 import { createStrapi } from '@strapi/strapi';
 import { brands, models, products, partTypes } from '../../storefront/src/data/seedData';
-import { primaryImagePathForPartType } from '../src/lib/part-image-paths';
+import { mediaFilenameForPartType, PART_TYPE_MEDIA_FILENAME } from '../../storefront/src/lib/partTypeMediaFiles';
 
 function toSlug(value: string, fallback: string): string {
   const slug = String(value || '')
@@ -16,6 +16,41 @@ function toSlug(value: string, fallback: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return slug || fallback;
+}
+
+async function ensurePartImageUploads(
+  app: Core.Strapi,
+  assetsDir: string
+): Promise<(partType: string) => number | undefined> {
+  const upload = app.plugin('upload').service('upload');
+  const idByFilename = new Map<string, number>();
+
+  const filenames = [...new Set(Object.values(PART_TYPE_MEDIA_FILENAME))];
+  for (const basename of filenames) {
+    const abs = path.join(assetsDir, basename);
+    if (!fs.existsSync(abs)) {
+      app.log.warn(`Skipping media upload: missing file ${abs}`);
+      continue;
+    }
+    const stat = fs.statSync(abs);
+    const [file] = await upload.upload({
+      data: {},
+      files: [
+        {
+          filepath: abs,
+          path: abs,
+          originalFilename: basename,
+          name: basename,
+          size: stat.size,
+          mimetype: 'image/png',
+          type: 'image/png',
+        },
+      ],
+    });
+    if (file?.id != null) idByFilename.set(basename, Number(file.id));
+  }
+
+  return (partType: string) => idByFilename.get(mediaFilenameForPartType(partType));
 }
 
 async function main() {
@@ -30,14 +65,7 @@ async function main() {
   await app.load();
 
   const storefrontParts = path.join(appDir, '..', 'storefront', 'src', 'assets', 'parts');
-  const publicParts = path.join(appDir, 'public', 'parts');
-  if (fs.existsSync(storefrontParts)) {
-    fs.mkdirSync(publicParts, { recursive: true });
-    fs.cpSync(storefrontParts, publicParts, { recursive: true });
-    app.log.info(`Synced part images from storefront into ${publicParts}`);
-  } else {
-    app.log.warn(`Storefront parts assets not found at ${storefrontParts}; primary images may 404 until assets exist`);
-  }
+  const getImageId = await ensurePartImageUploads(app, storefrontParts);
 
   const existing = await app.db.query('api::product.product').findOne({ where: { sku: products[0]?.sku } });
   if (existing) {
@@ -79,12 +107,13 @@ async function main() {
     const partModel = modelBySeedId.get(product.modelId);
     const partCategory = categoryByName.get(product.partType);
     if (!partModel || !partCategory) continue;
+    const imageId = getImageId(product.partType);
     await app.db.query('api::product.product').create({
       data: {
         sku: product.sku,
         name: product.name,
         description: product.description,
-        primaryImageUrl: primaryImagePathForPartType(product.partType),
+        ...(imageId != null ? { primaryImage: imageId } : {}),
         priceInMinor: String(Math.round((product.discountPrice || product.price || 0) * 100)),
         quantityOnHand: product.inStock ? product.stockQty ?? 0 : 0,
         quantityReserved: 0,

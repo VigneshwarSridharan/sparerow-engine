@@ -10,13 +10,17 @@ export function getStrapiOrigin(): string {
   }
 }
 
-/** Prefer catalog image from Strapi (`/parts/...`); fallback to bundled partImages map. */
+/** Prefer catalog image from Strapi media (`/uploads/...`); fallback to bundled partImages map. */
 export function resolveProductImageUrl(
   primaryImageUrl: string | null | undefined,
   partType: string
 ): string {
   if (primaryImageUrl) {
-    return `${getStrapiOrigin()}${primaryImageUrl}`;
+    if (/^https?:\/\//i.test(primaryImageUrl)) {
+      return primaryImageUrl;
+    }
+    const path = primaryImageUrl.startsWith('/') ? primaryImageUrl : `/${primaryImageUrl}`;
+    return `${getStrapiOrigin()}${path}`;
   }
   return getPartImage(partType) ?? '/placeholder.svg';
 }

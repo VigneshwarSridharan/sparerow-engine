@@ -823,7 +823,7 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
       'api::part-model.part-model'
     >;
     priceInMinor: Schema.Attribute.BigInteger & Schema.Attribute.Required;
-    primaryImageUrl: Schema.Attribute.String;
+    primaryImage: Schema.Attribute.Media<'images'>;
     publishedAt: Schema.Attribute.DateTime;
     quantityOnHand: Schema.Attribute.Integer &
       Schema.Attribute.Required &

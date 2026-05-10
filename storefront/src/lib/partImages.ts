@@ -11,27 +11,25 @@ import simTrayImg from '@/assets/parts/sim-tray.png';
 import fingerprintImg from '@/assets/parts/fingerprint.png';
 import onOffFlexImg from '@/assets/parts/on-off-flex.png';
 import volumeFlexImg from '@/assets/parts/volume-flex.png';
+import { mediaFilenameForPartType } from '@/lib/partTypeMediaFiles';
 
-const PART_IMAGES: Record<string, string> = {
-  'Battery': batteryImg,
-  'Display / Folder': displayImg,
-  'Charging / NFC Flex': chargingPortImg,
-  'Back Panel': backPanelImg,
-  'Back Camera': cameraImg,
-  'Front Camera': frontCameraImg,
-  'Camera Lens': cameraLensImg,
-  'Ringer / Speaker': speakerImg,
-  'Housing': housingImg,
-  'Housing with Spare Parts': housingImg,
-  'Middle Frame': housingImg,
-  'SIM Tray': simTrayImg,
-  'Fingerprint Sensor': fingerprintImg,
-  'On/Off Flex': onOffFlexImg,
-  'Volume Flex': volumeFlexImg,
-  'Main Flex': onOffFlexImg,
-  'Other': chargingPortImg,
+const IMAGE_BY_FILENAME: Record<string, string> = {
+  'battery.png': batteryImg,
+  'display.png': displayImg,
+  'charging-port.png': chargingPortImg,
+  'back-panel.png': backPanelImg,
+  'camera.png': cameraImg,
+  'front-camera.png': frontCameraImg,
+  'camera-lens.png': cameraLensImg,
+  'speaker.png': speakerImg,
+  'housing.png': housingImg,
+  'sim-tray.png': simTrayImg,
+  'fingerprint.png': fingerprintImg,
+  'on-off-flex.png': onOffFlexImg,
+  'volume-flex.png': volumeFlexImg,
 };
 
 export function getPartImage(partType: string): string | undefined {
-  return PART_IMAGES[partType];
+  const filename = mediaFilenameForPartType(partType);
+  return IMAGE_BY_FILENAME[filename];
 }
