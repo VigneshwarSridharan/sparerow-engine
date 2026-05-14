@@ -94,7 +94,7 @@ services:
       dockerfile: Dockerfile
       target: development
     ports:
-      - "${STOREFRONT_PORT:-8080}:8080"
+      - "${STOREFRONT_PORT:-4000}:4000"
     environment:
       VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-http://localhost:1337/graphql}
       CHOKIDAR_USEPOLLING: "true"
@@ -137,7 +137,7 @@ services:
         VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-http://localhost:1337/graphql}
     restart: unless-stopped
     ports:
-      - "${STOREFRONT_PORT:-8080}:80"
+      - "${STOREFRONT_PORT:-4000}:80"
     depends_on:
       - strapi_prod
 

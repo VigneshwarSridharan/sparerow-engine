@@ -8,7 +8,7 @@ RUN npm ci
 # Dev server (Compose bind-mounts source at /app)
 FROM deps AS development
 COPY . .
-EXPOSE 8080
+EXPOSE 4000
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # Static production build → nginx
