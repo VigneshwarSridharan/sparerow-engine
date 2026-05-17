@@ -69,6 +69,14 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
             checkoutContinuationSecret: null,
           },
         });
+        try {
+          const shipmentSvc = strapi.service('api::commerce.admin-shipment') as {
+            bookShipmentForOrder: (id: number) => Promise<void>;
+          };
+          await shipmentSvc.bookShipmentForOrder(order.id as number);
+        } catch (e) {
+          strapi.log.error('[webhook] bookShipmentForOrder failed for order %d: %o', order.id, e);
+        }
       }
     }
 

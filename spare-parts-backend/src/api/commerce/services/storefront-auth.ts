@@ -34,6 +34,20 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
     return { sub, typ: 'customer' };
   };
 
+  const claimGuestOrders = async (customerId: number, email: string) => {
+    const candidates = await strapi.db.query('api::order.order').findMany({
+      where: { contactEmail: email },
+    });
+    for (const order of candidates) {
+      // Only claim orders that have no customer account linked yet
+      if (order.customerAccount != null) continue;
+      await strapi.db.query('api::order.order').update({
+        where: { id: order.id as number },
+        data: { customerAccount: customerId },
+      });
+    }
+  };
+
   return {
     signCustomerToken,
     verifyCustomerToken,
@@ -67,6 +81,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
           passwordHash,
         },
       });
+      if (email) await claimGuestOrders(created.id as number, email);
       const token = signCustomerToken(created.id as number);
       return { token, customer: { id: created.id, email: created.email, phone: created.phone } };
     },
@@ -83,6 +98,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       if (!account?.passwordHash) throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid credentials');
       const ok = await bcrypt.compare(password, account.passwordHash as string);
       if (!ok) throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid credentials');
+      if (email) await claimGuestOrders(account.id as number, email);
       const token = signCustomerToken(account.id as number);
       return { token, customer: { id: account.id, email: account.email, phone: account.phone } };
     },

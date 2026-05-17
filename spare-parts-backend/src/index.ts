@@ -267,6 +267,19 @@ export default {
           ok: Boolean!
         }
 
+        type StorefrontCmsPage {
+          slug: String!
+          title: String!
+          body: String
+        }
+
+        type StorefrontFaq {
+          id: ID!
+          question: String!
+          answer: String
+          sortOrder: Int!
+        }
+
         type Query {
           storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
           storefrontProducts(filter: StorefrontCatalogFilterInput): [StorefrontProduct!]!
@@ -277,6 +290,8 @@ export default {
           storefrontAddresses(token: String!): [StorefrontAddress!]!
           storefrontOrders(token: String!): [StorefrontOrder!]!
           storefrontOrder(id: ID!, token: String!): StorefrontOrder
+          storefrontCmsPage(slug: String!): StorefrontCmsPage
+          storefrontFaqs: [StorefrontFaq!]!
         }
 
         type Mutation {
@@ -286,7 +301,7 @@ export default {
           storefrontCreateAddress(token: String!, input: StorefrontAddressInput!): StorefrontAddress!
           storefrontUpdateAddress(token: String!, id: ID!, input: StorefrontAddressInput!): StorefrontAddress!
           storefrontDeleteAddress(token: String!, id: ID!): StorefrontMutationResult!
-          storefrontCreateOrder(input: StorefrontCreateOrderInput!): StorefrontCreateOrderPayload!
+          storefrontCreateOrder(token: String, input: StorefrontCreateOrderInput!): StorefrontCreateOrderPayload!
           storefrontPrepareRazorpayPayment(orderId: ID!, paymentContinuationSecret: String!): StorefrontRazorpayPreparedOrder!
           storefrontVerifyRazorpayPayment(input: StorefrontVerifyRazorpayPaymentInput!): StorefrontOrder!
         }
@@ -583,6 +598,34 @@ export default {
               throwGraphQLError(error);
             }
           },
+          storefrontCmsPage: async (_: unknown, args: { slug: string }) => {
+            try {
+              const slug = String(args.slug || '').trim();
+              const block = await strapi.db.query('api::cms-block.cms-block').findOne({
+                where: { slug, isActive: true },
+              });
+              if (!block) return null;
+              return { slug: String(block.slug), title: String(block.title), body: block.body ? String(block.body) : null };
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontFaqs: async () => {
+            try {
+              const faqs = await strapi.db.query('api::faq.faq').findMany({
+                where: { isActive: true },
+                orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+              });
+              return faqs.map((f) => ({
+                id: f.id,
+                question: String(f.question || ''),
+                answer: f.answer ? String(f.answer) : null,
+                sortOrder: Number(f.sortOrder ?? 0),
+              }));
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
         },
         Mutation: {
           storefrontRegister: async (_: unknown, args: { input: Record<string, unknown> }) => {
@@ -678,14 +721,16 @@ export default {
           },
           storefrontCreateOrder: async (
             _: unknown,
-            args: { input: Record<string, unknown> },
+            args: { token?: string; input: Record<string, unknown> },
             context: { koaContext: { request: { header: { authorization?: string } } } }
           ) => {
             try {
               const auth = strapi.service('api::commerce.storefront-auth') as {
                 verifyCustomerToken: (token: string) => { sub: number };
               };
-              const raw = context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
               let customerId: number | undefined;
               if (raw) {
                 try {
@@ -787,6 +832,8 @@ export default {
         'Mutation.storefrontCreateOrder': { auth: false },
         'Mutation.storefrontPrepareRazorpayPayment': { auth: false },
         'Mutation.storefrontVerifyRazorpayPayment': { auth: false },
+        'Query.storefrontCmsPage': { auth: false },
+        'Query.storefrontFaqs': { auth: false },
       },
     }));
   },

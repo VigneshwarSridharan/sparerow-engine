@@ -123,8 +123,8 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
 `;
 
 const CREATE_ORDER_MUTATION = `
-  mutation StorefrontCreateOrder($input: StorefrontCreateOrderInput!) {
-    storefrontCreateOrder(input: $input) {
+  mutation StorefrontCreateOrder($token: String, $input: StorefrontCreateOrderInput!) {
+    storefrontCreateOrder(token: $token, input: $input) {
       paymentContinuationSecret
       order {
         id
@@ -249,10 +249,9 @@ export async function createStorefrontOrder(
   },
   token?: string
 ) {
-  const data = await graphqlRequest<CreateOrderResponse, { input: typeof input }>(
+  const data = await graphqlRequest<CreateOrderResponse, { token?: string; input: typeof input }>(
     CREATE_ORDER_MUTATION,
-    { input },
-    token
+    { token, input }
   );
   return data.storefrontCreateOrder;
 }
@@ -607,6 +606,43 @@ export async function deleteStorefrontAddress(token: string, id: string): Promis
     DELETE_ADDRESS_MUTATION,
     { token, id }
   );
+}
+
+const CMS_PAGE_QUERY = `
+  query StorefrontCmsPage($slug: String!) {
+    storefrontCmsPage(slug: $slug) {
+      slug
+      title
+      body
+    }
+  }
+`;
+
+const FAQS_QUERY = `
+  query StorefrontFaqs {
+    storefrontFaqs {
+      id
+      question
+      answer
+      sortOrder
+    }
+  }
+`;
+
+export type StorefrontCmsPage = { slug: string; title: string; body: string | null };
+export type StorefrontFaq = { id: string; question: string; answer: string | null; sortOrder: number };
+
+export async function fetchStorefrontCmsPage(slug: string): Promise<StorefrontCmsPage | null> {
+  const data = await graphqlRequest<{ storefrontCmsPage: StorefrontCmsPage | null }, { slug: string }>(
+    CMS_PAGE_QUERY,
+    { slug }
+  );
+  return data.storefrontCmsPage;
+}
+
+export async function fetchStorefrontFaqs(): Promise<StorefrontFaq[]> {
+  const data = await graphqlRequest<{ storefrontFaqs: StorefrontFaq[] }>(FAQS_QUERY);
+  return data.storefrontFaqs;
 }
 
 /** Display INR from minor units (paise) as returned by the API. */

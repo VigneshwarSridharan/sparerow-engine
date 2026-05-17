@@ -84,12 +84,11 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       populate: ['lineItems', 'shipments'],
     });
     if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order not found');
-    if (!order.customerAccount) {
-      throw new AppError(403, 'ORDER_FORBIDDEN', 'Guest orders cannot be viewed here');
-    }
-    if (Number(order.customerAccount) !== customerId) {
-      throw new AppError(403, 'ORDER_FORBIDDEN', 'Not your order');
-    }
+    // customerAccount is not populated above, so verify ownership via a targeted query
+    const owned = await strapi.db.query('api::order.order').findOne({
+      where: { id: orderId, customerAccount: customerId },
+    });
+    if (!owned) throw new AppError(403, 'ORDER_FORBIDDEN', 'Not your order');
     return order;
   },
 });

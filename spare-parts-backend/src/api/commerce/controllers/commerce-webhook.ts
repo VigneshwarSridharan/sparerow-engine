@@ -37,6 +37,7 @@ export default factories.createCoreController('api::commerce.singleton-placehold
     await handle(ctx, async () => {
       const raw = rawBodyFromCtx(ctx);
       const sig = ctx.request.header['x-razorpay-signature'] as string | undefined;
+      strapi.log.info(`[razorpay-webhook] sig-present=${!!sig} raw-length=${raw.length}`);
       const svc = strapi.service('api::commerce.webhook-razorpay') as {
         verifySignature: (r: string, s: string | undefined) => void;
         handlePayload: (r: string) => Promise<{ ok: boolean; duplicate: boolean }>;

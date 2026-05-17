@@ -5,6 +5,7 @@ export type CarrierCode = 'MOCK' | 'SHIPROCKET' | 'DELHIVERY';
 export interface BookShipmentInput {
   orderRef: string;
   weightGrams: number;
+  orderTotalInMinor?: number;
   pickup: {
     name: string;
     phone: string;

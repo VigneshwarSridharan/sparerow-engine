@@ -41,14 +41,23 @@ export class ShiprocketCarrier implements ShippingCarrier {
     const token = await getToken(this.strapi);
     const http = createAxios();
     const pickupLocation = this.strapi.config.get<string>('shipping.shiprocket.pickupLocation');
+    const orderDate = new Date().toISOString().slice(0, 10);
+    const nameParts = input.drop.name.trim().split(/\s+/);
+    const firstName = nameParts[0] || input.drop.name;
+    const lastName = nameParts.slice(1).join(' ') || '.';
     const res = await withTransientRetry(() =>
       http.post(
         'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
         {
           order_id: input.orderRef,
+          order_date: orderDate,
           pickup_location: pickupLocation,
-          billing_customer_name: input.drop.name,
+          payment_method: 'Prepaid',
+          sub_total: input.orderTotalInMinor != null ? Math.max(1, Math.round(input.orderTotalInMinor / 100)) : 1,
+          billing_customer_name: firstName,
+          billing_last_name: lastName,
           billing_address: input.drop.line1,
+          billing_address_2: input.drop.line2 || '',
           billing_city: input.drop.city,
           billing_pincode: input.drop.postalCode,
           billing_state: input.drop.state,
@@ -56,8 +65,11 @@ export class ShiprocketCarrier implements ShippingCarrier {
           billing_email: 'noreply@example.com',
           billing_phone: input.drop.phone,
           shipping_is_billing: true,
-          order_items: [{ name: 'Spare parts', sku: input.orderRef, units: 1, selling_price: 1 }],
+          order_items: [{ name: 'Spare parts', sku: input.orderRef, units: 1, selling_price: input.orderTotalInMinor != null ? Math.max(1, Math.round(input.orderTotalInMinor / 100)) : 1 }],
           weight: Math.max(0.05, input.weightGrams / 1000),
+          length: 10,
+          breadth: 10,
+          height: 5,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )

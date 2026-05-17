@@ -18,6 +18,9 @@ import RegisterPage from "./pages/RegisterPage.tsx";
 import AccountOrdersPage from "./pages/AccountOrdersPage.tsx";
 import AccountOrderDetailPage from "./pages/AccountOrderDetailPage.tsx";
 import AccountAddressesPage from "./pages/AccountAddressesPage.tsx";
+import TermsPage from "./pages/TermsPage.tsx";
+import PrivacyPage from "./pages/PrivacyPage.tsx";
+import FaqPage from "./pages/FaqPage.tsx";
 import { StorefrontLayout } from "./layouts/StorefrontLayout.tsx";
 import { AccountLayout } from "./layouts/AccountLayout.tsx";
 import { CustomerAuthProvider } from "./contexts/CustomerAuthContext.tsx";
@@ -44,6 +47,9 @@ const App = () => (
                       <Route path="products/:productId" element={<ProductDetailsPage />} />
                       <Route path="about" element={<AboutPage />} />
                       <Route path="wishlist" element={<WishlistPage />} />
+                      <Route path="terms" element={<TermsPage />} />
+                      <Route path="privacy" element={<PrivacyPage />} />
+                      <Route path="faq" element={<FaqPage />} />
                       <Route path="login" element={<LoginPage />} />
                       <Route path="register" element={<RegisterPage />} />
                       <Route
