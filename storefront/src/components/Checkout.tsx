@@ -35,6 +35,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderIdDisplay, setOrderIdDisplay] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [razorpayOpen, setRazorpayOpen] = useState(false);
   const [paymentSession, setPaymentSession] = useState<PaymentSession | null>(null);
   const [form, setForm] = useState<CustomerInfo>({
     firstName: '',
@@ -78,6 +79,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
       theme: { color: '#2563eb' },
       modal: {
         ondismiss: () => {
+          setRazorpayOpen(false);
           toast({
             title: 'Payment incomplete',
             description: 'Your order is reserved. Retry payment when ready.',
@@ -85,6 +87,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
         },
       },
       handler: async (response) => {
+        setRazorpayOpen(false);
         try {
           await verifyStorefrontRazorpayPayment({
             orderId: session.strapiOrderId,
@@ -106,6 +109,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     });
 
     instance.on('payment.failed', () => {
+      setRazorpayOpen(false);
       toast({
         title: 'Payment failed',
         description: 'Your bank declined the transaction or an error occurred. You can retry.',
@@ -113,6 +117,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
       });
     });
 
+    setRazorpayOpen(true);
     instance.open();
     setSubmitting(false);
   };
@@ -189,7 +194,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog modal={!razorpayOpen} open={isOpen} onOpenChange={(open) => { if (!open && (submitting || razorpayOpen || orderPlaced)) return; if (!open) handleClose(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         {orderPlaced ? (
           <div className="text-center py-8 space-y-4">

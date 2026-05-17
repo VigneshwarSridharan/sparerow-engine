@@ -616,6 +616,34 @@ export interface ApiCustomerAddressCustomerAddress
   };
 }
 
+export interface ApiFaqFaq extends Struct.CollectionTypeSchema {
+  collectionName: 'faqs';
+  info: {
+    displayName: 'FAQ';
+    pluralName: 'faqs';
+    singularName: 'faq';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    answer: Schema.Attribute.RichText;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::faq.faq'> &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    question: Schema.Attribute.String & Schema.Attribute.Required;
+    sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiOrderLineItemOrderLineItem
   extends Struct.CollectionTypeSchema {
   collectionName: 'order_line_items';
@@ -662,6 +690,8 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    checkoutContinuationSecret: Schema.Attribute.String &
+      Schema.Attribute.Private;
     contactEmail: Schema.Attribute.String & Schema.Attribute.Required;
     contactPhone: Schema.Attribute.String & Schema.Attribute.Required;
     createdAt: Schema.Attribute.DateTime;
@@ -1483,6 +1513,7 @@ declare module '@strapi/strapi' {
       'api::commerce.singleton-placeholder': ApiCommerceSingletonPlaceholder;
       'api::customer-account.customer-account': ApiCustomerAccountCustomerAccount;
       'api::customer-address.customer-address': ApiCustomerAddressCustomerAddress;
+      'api::faq.faq': ApiFaqFaq;
       'api::order-line-item.order-line-item': ApiOrderLineItemOrderLineItem;
       'api::order.order': ApiOrderOrder;
       'api::part-category.part-category': ApiPartCategoryPartCategory;

@@ -63,6 +63,16 @@ export default factories.createCoreController('api::commerce.singleton-placehold
     });
   },
 
+  async orderBookShipment(ctx: Context) {
+    await handle(ctx, async () => {
+      const svc = strapi.service('api::commerce.admin-shipment') as {
+        bookShipmentForOrder: (id: number) => Promise<void>;
+      };
+      await svc.bookShipmentForOrder(Number(ctx.params.orderId));
+      ctx.body = { ok: true };
+    });
+  },
+
   async shipmentPatchStatus(ctx: Context) {
     await handle(ctx, async () => {
       const body = ctx.request.body as { status?: string };

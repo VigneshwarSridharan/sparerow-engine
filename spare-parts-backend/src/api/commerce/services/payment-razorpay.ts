@@ -13,6 +13,9 @@ async function loadOrderContinuation(
   const order = await strapi.db.query('api::order.order').findOne({ where: { id: orderId } });
   if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order not found');
   const stored = order.checkoutContinuationSecret as string | null | undefined;
+  // Webhook may have already processed and cleared the secret before the browser verify call arrives.
+  // If the order is already PAID the downstream idempotent path will validate the payment IDs.
+  if (!stored && order.status === 'PAID') return order;
   if (!stored || !continuationSecret || !timingSafeStringEqual(stored, continuationSecret)) {
     throw new AppError(403, 'CHECKOUT_FORBIDDEN', 'Invalid checkout continuation');
   }
@@ -172,6 +175,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         checkoutContinuationSecret: null,
       },
     });
+
+    try {
+      const shipmentSvc = strapi.service('api::commerce.admin-shipment') as {
+        bookShipmentForOrder: (id: number) => Promise<void>;
+      };
+      await shipmentSvc.bookShipmentForOrder(input.orderId);
+    } catch (e) {
+      strapi.log.error('[payment] bookShipmentForOrder failed for order %d: %o', input.orderId, e);
+    }
 
     return strapi.db.query('api::order.order').findOne({
       where: { id: input.orderId },

@@ -24,9 +24,9 @@ export function Footer() {
             <h4 className="font-semibold mb-3 text-sm">Customer Service</h4>
             <ul className="space-y-2 text-sm opacity-70">
               <li>Track Order</li>
-              <li>Return Policy</li>
-              <li>Shipping Info</li>
-              <li>FAQ</li>
+              <li><button className="hover:opacity-100 transition-opacity" onClick={() => navigate('/faq')}>FAQ</button></li>
+              <li><button className="hover:opacity-100 transition-opacity" onClick={() => navigate('/terms')}>Terms &amp; Conditions</button></li>
+              <li><button className="hover:opacity-100 transition-opacity" onClick={() => navigate('/privacy')}>Privacy Policy</button></li>
             </ul>
           </div>
           <div>
@@ -38,8 +38,10 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-background/20 mt-8 pt-8 text-center text-sm opacity-50">
-          © 2026 SpareHub. All rights reserved.
+        <div className="border-t border-background/20 mt-8 pt-8 text-center text-sm opacity-50 flex flex-wrap justify-center gap-4">
+          <span>© 2026 SpareHub. All rights reserved.</span>
+          <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/terms')}>Terms &amp; Conditions</button>
+          <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/privacy')}>Privacy Policy</button>
         </div>
       </div>
     </footer>

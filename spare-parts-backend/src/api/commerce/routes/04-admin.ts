@@ -41,6 +41,12 @@ const config: Core.RouterConfig = {
     },
     {
       method: 'POST',
+      path: '/admin/orders/:orderId/book-shipment',
+      handler: 'api::commerce.commerce-admin.orderBookShipment',
+      config: { auth: false, policies: ['global::internal-api-key'], middlewares: [] },
+    },
+    {
+      method: 'POST',
       path: '/admin/shipments/:shipmentId/ready-for-pickup',
       handler: 'api::commerce.commerce-admin.shipmentReady',
       config: { auth: false, policies: ['global::internal-api-key', 'global::admin-session'], middlewares: [] },
