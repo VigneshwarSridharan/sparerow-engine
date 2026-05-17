@@ -107,6 +107,11 @@
       "type": "biginteger",
       "default": "0"
     },
+    "taxRatePercent": {
+      "type": "integer",
+      "default": 0,
+      "description": "Effective blended GST rate applied to this order, stored for display purposes."
+    },
     "customerAccount": {
       "type": "relation",
       "relation": "manyToOne",

@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/contexts/CartContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useState } from 'react';
+import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface CartDrawerProps {
   onCheckout: () => void;
@@ -12,12 +13,14 @@ interface CartDrawerProps {
 
 export function CartDrawer({ onCheckout }: CartDrawerProps) {
   const { items, removeFromCart, updateQuantity, getCartTotal, getCartCount, couponCode, couponDiscount, applyCoupon, isCartOpen, setIsCartOpen } = useCart();
+  const { defaultTaxRatePercent } = useStorefrontData();
   const [couponInput, setCouponInput] = useState('');
 
   const subtotal = items.reduce((sum, i) => sum + i.product.discountPrice * i.quantity, 0);
   const shipping = subtotal > 2000 ? 0 : 99;
   const discount = subtotal * couponDiscount / 100;
-  const total = subtotal - discount + shipping;
+  const estimatedTax = defaultTaxRatePercent > 0 ? Math.round((subtotal - discount) * defaultTaxRatePercent / 100) : 0;
+  const total = subtotal - discount + shipping + estimatedTax;
 
   return (
     <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
@@ -86,6 +89,9 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
                 <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
                 {discount > 0 && <div className="flex justify-between text-success"><span>Coupon Discount</span><span>-₹{discount.toLocaleString()}</span></div>}
                 <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span></div>
+                {estimatedTax > 0 && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">GST ({defaultTaxRatePercent}%)</span><span>₹{estimatedTax.toLocaleString()}</span></div>
+                )}
                 <Separator />
                 <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-primary">₹{total.toLocaleString()}</span></div>
               </div>

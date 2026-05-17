@@ -40,6 +40,8 @@ type BootstrapResponse = {
       minOrderSubtotalInMinor: string;
       maxDiscountInMinor?: string | null;
     }>;
+    defaultTaxRatePercent: number;
+    originStateCode: string;
   };
 };
 
@@ -50,6 +52,8 @@ type CreateOrderResponse = {
       id: string;
       totalInMinor: string;
       subtotalInMinor: string;
+      taxInMinor: string;
+      taxRatePercent: number;
       shippingInMinor: string;
       promoCode?: string | null;
       promoDiscountInMinor?: string | null;
@@ -76,6 +80,7 @@ type VerifyRazorpayResponse = {
 };
 
 export type StorefrontCreatedOrder = CreateOrderResponse['storefrontCreateOrder'];
+export type StorefrontCreatedOrderData = StorefrontCreatedOrder['order'];
 
 export type StorefrontBootstrapData = {
   brands: Brand[];
@@ -89,6 +94,8 @@ export type StorefrontBootstrapData = {
     minOrderSubtotalInMinor: number;
     maxDiscountInMinor?: number;
   }>;
+  defaultTaxRatePercent: number;
+  originStateCode: string;
 };
 
 const STOREFRONT_BOOTSTRAP_QUERY = `
@@ -118,6 +125,8 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
         primaryImageUrl
       }
       promoCodes { code discountPercent minOrderSubtotalInMinor maxDiscountInMinor }
+      defaultTaxRatePercent
+      originStateCode
     }
   }
 `;
@@ -130,6 +139,8 @@ const CREATE_ORDER_MUTATION = `
         id
         totalInMinor
         subtotalInMinor
+        taxInMinor
+        taxRatePercent
         shippingInMinor
         promoCode
         promoDiscountInMinor
@@ -227,6 +238,8 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
       maxDiscountInMinor:
         promo.maxDiscountInMinor != null ? Number(promo.maxDiscountInMinor) : undefined,
     })),
+    defaultTaxRatePercent: bootstrap.defaultTaxRatePercent ?? 0,
+    originStateCode: bootstrap.originStateCode ?? '',
   };
 }
 
@@ -342,6 +355,7 @@ export type StorefrontOrderSummary = {
   currency: string;
   subtotalInMinor: string;
   taxInMinor: string;
+  taxRatePercent: number;
   shippingInMinor: string;
   totalInMinor: string;
   promoCode: string | null;
@@ -406,6 +420,7 @@ const ORDER_DETAIL_FIELDS = `
   currency
   subtotalInMinor
   taxInMinor
+  taxRatePercent
   shippingInMinor
   totalInMinor
   promoCode

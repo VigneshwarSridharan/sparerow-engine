@@ -15,6 +15,8 @@ const defaultData: StorefrontBootstrapData = {
   categories: [],
   partTypes: [],
   promoCodes: [],
+  defaultTaxRatePercent: 0,
+  originStateCode: '',
 };
 
 const StorefrontDataContext = createContext<StorefrontDataContextValue>({
