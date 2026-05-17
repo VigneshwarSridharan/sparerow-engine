@@ -10,8 +10,10 @@ import {
   availableToSell,
   lineTotal,
 } from '../../../lib/validators';
+import { lookupTaxRate, computeLineTax } from '../../../lib/tax';
 
 type CartLine = { sku: string; quantity: number };
+type NormalizedLine = { sku: string; quantity: number; product: Record<string, unknown>; categorySlug: string | null };
 
 const FREE_SHIPPING_SUBTOTAL_ABOVE_PAISE = 200000n;
 const FLAT_SHIPPING_INR_99_PAISE = 9900n;
@@ -105,18 +107,21 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     }
 
     return strapi.db.transaction(async () => {
-      const normalizedLines: { sku: string; quantity: number; product: Record<string, unknown> }[] = [];
+      const normalizedLines: NormalizedLine[] = [];
       for (const raw of lines) {
         const { sku, quantity } = raw;
         const product = await strapi.db.query('api::product.product').findOne({
           where: { sku, isActive: true },
+          populate: ['partCategory'],
         });
         if (!product) throw new AppError(400, 'SKU_NOT_FOUND', `Unknown SKU ${sku}`);
         const onHand = Number(product.quantityOnHand);
         const reserved = Number(product.quantityReserved);
         const avail = availableToSell(onHand, reserved);
         if (avail < quantity) throw new AppError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${sku}`);
-        normalizedLines.push({ sku, quantity, product: product as unknown as Record<string, unknown> });
+        const categorySlug =
+          (product.partCategory as Record<string, unknown> | null)?.slug as string | null ?? null;
+        normalizedLines.push({ sku, quantity, product: product as unknown as Record<string, unknown>, categorySlug });
       }
 
       for (const row of normalizedLines) {
@@ -131,6 +136,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       }
 
       let subtotal = 0n;
+      let tax = 0n;
+      const shippingStateCode = shipSnap.shippingState;
       const linePayloads: {
         skuSnapshot: string;
         nameSnapshot: string;
@@ -146,6 +153,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         const qty = row.quantity;
         const lt = lineTotal(unit, qty);
         subtotal += lt;
+        const ratePercent = await lookupTaxRate(strapi, row.categorySlug, shippingStateCode);
+        tax += computeLineTax(unit, qty, ratePercent);
         linePayloads.push({
           skuSnapshot: String(p.sku),
           nameSnapshot: String(p.name),
@@ -155,6 +164,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           product: p.id as number,
         });
       }
+
+      const taxRatePercent = subtotal > 0n ? Number((tax * 100n) / subtotal) : 0;
 
       let promoCode: string | undefined;
       let promoDiscount = 0n;
@@ -173,7 +184,6 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         }
       }
 
-      const tax = 0n;
       const shipping = subtotal > FREE_SHIPPING_SUBTOTAL_ABOVE_PAISE ? 0n : FLAT_SHIPPING_INR_99_PAISE;
       const total = subtotal + tax + shipping - promoDiscount;
 
@@ -190,6 +200,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           checkoutContinuationSecret,
           subtotalInMinor: subtotal.toString(),
           taxInMinor: tax.toString(),
+          taxRatePercent,
           shippingInMinor: shipping.toString(),
           totalInMinor: total.toString(),
           promoCode: promoCode || null,

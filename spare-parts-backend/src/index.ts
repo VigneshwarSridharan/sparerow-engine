@@ -136,6 +136,8 @@ export default {
           categories: [StorefrontCategory!]!
           products: [StorefrontProduct!]!
           promoCodes: [StorefrontPromoCode!]!
+          defaultTaxRatePercent: Int!
+          originStateCode: String!
         }
 
         type StorefrontAddress {
@@ -223,6 +225,7 @@ export default {
           currency: String!
           subtotalInMinor: String!
           taxInMinor: String!
+          taxRatePercent: Int!
           shippingInMinor: String!
           totalInMinor: String!
           promoCode: String
@@ -399,7 +402,16 @@ export default {
                 isActive: Boolean(promo.isActive),
               }));
 
-              return { brands, models, categories, products, promoCodes };
+              const taxRulesRaw = await strapi.db.query('api::tax-rule.tax-rule').findMany({
+                where: { isActive: true },
+              });
+              const globalTaxRule = taxRulesRaw.find(
+                (r) => !r.categorySlug && !r.stateCode
+              );
+              const defaultTaxRatePercent = globalTaxRule ? Number(globalTaxRule.ratePercent) : 0;
+              const originStateCode = String(strapi.config.get('shipping.origin.state') || '');
+
+              return { brands, models, categories, products, promoCodes, defaultTaxRatePercent, originStateCode };
             } catch (error) {
               throwGraphQLError(error);
             }
@@ -803,6 +815,7 @@ export default {
         StorefrontOrder: {
           createdAt: (parent: Record<string, unknown>) =>
             parent.createdAt != null ? String(parent.createdAt) : null,
+          taxRatePercent: (parent: Record<string, unknown>) => Number(parent.taxRatePercent ?? 0),
           shipments: (parent: Record<string, unknown>) => {
             const rows = parent.shipments;
             return Array.isArray(rows) ? rows : [];

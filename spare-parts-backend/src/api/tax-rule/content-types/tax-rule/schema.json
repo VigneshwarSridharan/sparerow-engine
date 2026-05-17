@@ -1,0 +1,34 @@
+{
+  "kind": "collectionType",
+  "collectionName": "tax_rules",
+  "info": {
+    "singularName": "tax-rule",
+    "pluralName": "tax-rules",
+    "displayName": "Tax Rule"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "categorySlug": {
+      "type": "string",
+      "description": "Part category slug this rule applies to. Leave empty for all categories."
+    },
+    "stateCode": {
+      "type": "string",
+      "description": "2-letter state code (e.g. KA, MH). Leave empty for all states."
+    },
+    "ratePercent": {
+      "type": "integer",
+      "required": true,
+      "default": 18,
+      "min": 0,
+      "max": 100
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

@@ -655,6 +655,11 @@ export interface ApiOrderLineItemOrderLineItem
   options: {
     draftAndPublish: false;
   };
+  pluginOptions: {
+    'content-manager': {
+      visible: false;
+    };
+  };
   attributes: {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -748,6 +753,7 @@ export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
     taxInMinor: Schema.Attribute.BigInteger &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'0'>;
+    taxRatePercent: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     totalInMinor: Schema.Attribute.BigInteger & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -965,6 +971,46 @@ export interface ApiShipmentShipment extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiTaxRuleTaxRule extends Struct.CollectionTypeSchema {
+  collectionName: 'tax_rules';
+  info: {
+    displayName: 'Tax Rule';
+    pluralName: 'tax-rules';
+    singularName: 'tax-rule';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    categorySlug: Schema.Attribute.String;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::tax-rule.tax-rule'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    ratePercent: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 100;
+          min: 0;
+        },
+        number
+      > &
+      Schema.Attribute.DefaultTo<18>;
+    stateCode: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiWebhookDeliveryWebhookDelivery
   extends Struct.CollectionTypeSchema {
   collectionName: 'webhook_deliveries';
@@ -975,6 +1021,11 @@ export interface ApiWebhookDeliveryWebhookDelivery
   };
   options: {
     draftAndPublish: false;
+  };
+  pluginOptions: {
+    'content-manager': {
+      visible: false;
+    };
   };
   attributes: {
     createdAt: Schema.Attribute.DateTime;
@@ -1521,6 +1572,7 @@ declare module '@strapi/strapi' {
       'api::product.product': ApiProductProduct;
       'api::promo-code.promo-code': ApiPromoCodePromoCode;
       'api::shipment.shipment': ApiShipmentShipment;
+      'api::tax-rule.tax-rule': ApiTaxRuleTaxRule;
       'api::webhook-delivery.webhook-delivery': ApiWebhookDeliveryWebhookDelivery;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;

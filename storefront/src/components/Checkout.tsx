@@ -30,7 +30,7 @@ type PaymentSession = {
 
 export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const { items, couponCode, couponDiscount, clearCart } = useCart();
-  const { products } = useStorefrontData();
+  const { products, defaultTaxRatePercent, originStateCode } = useStorefrontData();
   const { token: customerToken } = useCustomerAuth();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderIdDisplay, setOrderIdDisplay] = useState('');
@@ -53,7 +53,15 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const subtotal = validItems.reduce((sum, i) => sum + i.product.discountPrice * i.quantity, 0);
   const shipping = subtotal > 2000 ? 0 : 99;
   const discount = (subtotal * couponDiscount) / 100;
-  const total = subtotal - discount + shipping;
+  const estimatedTax = defaultTaxRatePercent > 0 ? Math.round((subtotal - discount) * defaultTaxRatePercent / 100) : 0;
+  const total = subtotal - discount + shipping + estimatedTax;
+
+  const isIntrastate = originStateCode && form.state.trim().toUpperCase() === originStateCode.toUpperCase();
+  const gstLabel = estimatedTax > 0
+    ? isIntrastate
+      ? `CGST (${defaultTaxRatePercent / 2}%) + SGST (${defaultTaxRatePercent / 2}%)`
+      : `IGST (${defaultTaxRatePercent}%)`
+    : null;
 
   const openRazorpayForSession = async (session: PaymentSession) => {
     await loadRazorpayScript();
@@ -338,6 +346,12 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
                     <span>Shipping</span>
                     <span>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
                   </div>
+                  {gstLabel && (
+                    <div className="flex justify-between text-sm">
+                      <span>{gstLabel}</span>
+                      <span>₹{estimatedTax.toLocaleString()}</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
@@ -345,8 +359,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  The amount charged is confirmed on the Razorpay screen (server totals in paise include shipping
-                  rules).
+                  GST is estimated. The exact amount charged is confirmed on the Razorpay screen.
                 </p>
               </div>
 
@@ -360,7 +373,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
               )}
 
               <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-                {submitting ? 'Opening Razorpay…' : `Pay securely — ₹${total.toLocaleString()}`}
+                {submitting ? 'Opening Razorpay…' : `Pay securely — ₹${total.toLocaleString()}${estimatedTax > 0 ? ' (incl. GST)' : ''}`}
               </Button>
             </form>
           </>
