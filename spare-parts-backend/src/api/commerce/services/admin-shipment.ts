@@ -102,7 +102,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           await sendEmail(strapi, contactEmail, `Order ORD-${orderId} Delivered`, html);
         }
       } catch (e) {
-        strapi.log.error('[mailer] shipment email failed for shipment %d: %o', shipmentId, e);
+        strapi.log.error('[mailer] shipment email failed for shipment %d: %s', shipmentId, e instanceof Error ? e.message : String(e));
       }
     }
 
