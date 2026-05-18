@@ -79,7 +79,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           };
           await shipmentSvc.bookShipmentForOrder(order.id as number);
         } catch (e) {
-          strapi.log.error('[webhook] bookShipmentForOrder failed for order %d: %o', order.id, e);
+          strapi.log.error('[webhook] bookShipmentForOrder failed for order %d: %s', order.id, e instanceof Error ? e.message : String(e));
         }
         if (wasPending && order.contactEmail) {
           try {
@@ -101,7 +101,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
             });
             await sendEmail(strapi, String(order.contactEmail), `Order Confirmed – ORD-${order.id}`, html);
           } catch (e) {
-            strapi.log.error('[mailer] order-confirmation failed for order %d: %o', order.id, e);
+            strapi.log.error('[mailer] order-confirmation failed for order %d: %s', order.id, e instanceof Error ? e.message : String(e));
           }
         }
       }

@@ -145,3 +145,20 @@ Storefront also has Playwright E2E tests (`@playwright/test`).
 ## Admin Panel Customization
 
 Custom Strapi admin extensions live in `spare-parts-backend/src/admin/` (dashboard widget, assets). These are compiled into the admin panel during `yarn build`.
+
+---
+
+## Linear Integration
+
+To communicate with Linear, use the GraphQL API directly via `curl`. **Do not use a Linear MCP server.**
+
+```bash
+curl \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: ${LINEAR_API_KEY}" \
+  --data '{ "query": "{ issues { nodes { id title } } }" }' \
+  https://api.linear.app/graphql
+```
+
+The `LINEAR_API_KEY` environment variable must be set with a valid Linear personal API key. All Linear operations (fetching issues, creating/updating issues, etc.) should go through this endpoint.

@@ -22,5 +22,6 @@ export async function sendEmail(
     return;
   }
   const from = strapi.config.get<string>('email.from') || 'orders@sparehub.com';
-  await client.emails.send({ from, to, subject, html });
+  const { error } = await client.emails.send({ from, to, subject, html });
+  if (error) throw new Error(`Resend error: ${error.message}`);
 }

@@ -184,7 +184,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       };
       await shipmentSvc.bookShipmentForOrder(input.orderId);
     } catch (e) {
-      strapi.log.error('[payment] bookShipmentForOrder failed for order %d: %o', input.orderId, e);
+      strapi.log.error('[payment] bookShipmentForOrder failed for order %d: %s', input.orderId, e instanceof Error ? e.message : String(e));
     }
 
     const populated = await strapi.db.query('api::order.order').findOne({
@@ -212,7 +212,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         });
         await sendEmail(strapi, String(populated.contactEmail), `Order Confirmed – ORD-${input.orderId}`, html);
       } catch (e) {
-        strapi.log.error('[mailer] order-confirmation failed for order %d: %o', input.orderId, e);
+        strapi.log.error('[mailer] order-confirmation failed for order %d: %s', input.orderId, e instanceof Error ? e.message : String(e));
       }
     }
 
