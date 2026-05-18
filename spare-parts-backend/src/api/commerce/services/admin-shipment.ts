@@ -2,6 +2,9 @@ import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
 import { assertShipmentTransition, type ShipmentStatus } from '../../../lib/transitions';
 import { getPrimaryCarrier } from '../../../shipping/factory';
+import { sendEmail } from '../../../lib/mailer';
+import { orderShippedHtml } from '../../../lib/email-templates/order-shipped';
+import { orderDeliveredHtml } from '../../../lib/email-templates/order-delivered';
 
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
   async bookShipmentForOrder(orderId: number) {
@@ -64,13 +67,45 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
   },
 
   async updateShipmentStatus(shipmentId: number, next: ShipmentStatus) {
-    const ship = await strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
+    const ship = await strapi.db.query('api::shipment.shipment').findOne({
+      where: { id: shipmentId },
+      populate: ['order'],
+    });
     if (!ship) throw new AppError(404, 'SHIPMENT_NOT_FOUND', 'Shipment not found');
     assertShipmentTransition(ship.status as ShipmentStatus, next);
     await strapi.db.query('api::shipment.shipment').update({
       where: { id: shipmentId },
       data: { status: next, lastSyncedAt: new Date(), carrierStatusLabel: next },
     });
+
+    const order = ship.order as Record<string, unknown> | null;
+    if (order?.contactEmail) {
+      try {
+        const orderId = order.id as number;
+        const contactEmail = String(order.contactEmail);
+        if (next === 'IN_TRANSIT') {
+          const html = orderShippedHtml({
+            orderId,
+            contactEmail,
+            shippingRecipientName: String(order.shippingRecipientName || ''),
+            trackingNumber: ship.trackingNumber ? String(ship.trackingNumber) : undefined,
+            carrier: String(ship.carrier || 'MOCK'),
+            carrierStatusLabel: ship.carrierStatusLabel ? String(ship.carrierStatusLabel) : undefined,
+          });
+          await sendEmail(strapi, contactEmail, `Your Order ORD-${orderId} Has Shipped`, html);
+        } else if (next === 'DELIVERED') {
+          const html = orderDeliveredHtml({
+            orderId,
+            contactEmail,
+            shippingRecipientName: String(order.shippingRecipientName || ''),
+          });
+          await sendEmail(strapi, contactEmail, `Order ORD-${orderId} Delivered`, html);
+        }
+      } catch (e) {
+        strapi.log.error('[mailer] shipment email failed for shipment %d: %o', shipmentId, e);
+      }
+    }
+
     return strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
   },
 

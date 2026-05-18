@@ -4,6 +4,8 @@ import { AppError } from '../../../lib/errors';
 import { verifyRazorpayPaymentSignature } from '../../../lib/razorpay-signature';
 import { timingSafeStringEqual } from '../../../lib/secret-compare';
 import { assertSafeMinorAmount } from '../../../lib/validators';
+import { sendEmail } from '../../../lib/mailer';
+import { orderConfirmationHtml } from '../../../lib/email-templates/order-confirmation';
 
 async function loadOrderContinuation(
   strapi: Core.Strapi,
@@ -185,9 +187,35 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       strapi.log.error('[payment] bookShipmentForOrder failed for order %d: %o', input.orderId, e);
     }
 
-    return strapi.db.query('api::order.order').findOne({
+    const populated = await strapi.db.query('api::order.order').findOne({
       where: { id: input.orderId },
       populate: ['lineItems', 'shipments'],
     });
+
+    if (populated?.contactEmail) {
+      try {
+        const html = orderConfirmationHtml({
+          orderId: input.orderId,
+          contactEmail: String(populated.contactEmail),
+          shippingRecipientName: String(populated.shippingRecipientName || ''),
+          shippingLine1: String(populated.shippingLine1 || ''),
+          shippingLine2: populated.shippingLine2 ? String(populated.shippingLine2) : undefined,
+          shippingCity: String(populated.shippingCity || ''),
+          shippingState: String(populated.shippingState || ''),
+          shippingPostalCode: String(populated.shippingPostalCode || ''),
+          subtotalInMinor: populated.subtotalInMinor as string,
+          taxInMinor: populated.taxInMinor as string,
+          shippingInMinor: populated.shippingInMinor as string,
+          promoDiscountInMinor: populated.promoDiscountInMinor as string | undefined,
+          totalInMinor: populated.totalInMinor as string,
+          lineItems: ((populated.lineItems as Record<string, unknown>[] | null) ?? []) as never,
+        });
+        await sendEmail(strapi, String(populated.contactEmail), `Order Confirmed – ORD-${input.orderId}`, html);
+      } catch (e) {
+        strapi.log.error('[mailer] order-confirmation failed for order %d: %o', input.orderId, e);
+      }
+    }
+
+    return populated;
   },
 });
