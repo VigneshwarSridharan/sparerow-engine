@@ -1,6 +1,8 @@
 import type { Core } from '@strapi/strapi';
 import crypto from 'crypto';
 import { AppError } from '../../../lib/errors';
+import { sendEmail } from '../../../lib/mailer';
+import { orderConfirmationHtml } from '../../../lib/email-templates/order-confirmation';
 
 function timingSafeEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a, 'utf8');
@@ -59,8 +61,10 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       const paymentId = String((entity as Record<string, unknown>).id || '');
       const order = await strapi.db.query('api::order.order').findOne({
         where: { providerOrderId: rzpOrderId },
+        populate: ['lineItems'],
       });
       if (order) {
+        const wasPending = order.status === 'PENDING_PAYMENT';
         await strapi.db.query('api::order.order').update({
           where: { id: order.id },
           data: {
@@ -76,6 +80,29 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
           await shipmentSvc.bookShipmentForOrder(order.id as number);
         } catch (e) {
           strapi.log.error('[webhook] bookShipmentForOrder failed for order %d: %o', order.id, e);
+        }
+        if (wasPending && order.contactEmail) {
+          try {
+            const html = orderConfirmationHtml({
+              orderId: order.id as number,
+              contactEmail: String(order.contactEmail),
+              shippingRecipientName: String(order.shippingRecipientName || ''),
+              shippingLine1: String(order.shippingLine1 || ''),
+              shippingLine2: order.shippingLine2 ? String(order.shippingLine2) : undefined,
+              shippingCity: String(order.shippingCity || ''),
+              shippingState: String(order.shippingState || ''),
+              shippingPostalCode: String(order.shippingPostalCode || ''),
+              subtotalInMinor: order.subtotalInMinor as string,
+              taxInMinor: order.taxInMinor as string,
+              shippingInMinor: order.shippingInMinor as string,
+              promoDiscountInMinor: order.promoDiscountInMinor as string | undefined,
+              totalInMinor: order.totalInMinor as string,
+              lineItems: ((order.lineItems as Record<string, unknown>[] | null) ?? []) as never,
+            });
+            await sendEmail(strapi, String(order.contactEmail), `Order Confirmed – ORD-${order.id}`, html);
+          } catch (e) {
+            strapi.log.error('[mailer] order-confirmation failed for order %d: %o', order.id, e);
+          }
         }
       }
     }

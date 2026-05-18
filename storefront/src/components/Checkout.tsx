@@ -217,7 +217,8 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
               </DialogDescription>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              We will send confirmation and tracking details shortly.
+              Confirmation email sent to{' '}
+              <span className="font-medium">{form.email}</span>
             </p>
             <Button onClick={handleClose}>Continue Shopping</Button>
           </div>
