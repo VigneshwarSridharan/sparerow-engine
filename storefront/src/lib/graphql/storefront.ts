@@ -34,6 +34,15 @@ type BootstrapResponse = {
       uiNewArrival: boolean;
       primaryImageUrl?: string | null;
       imageUrls: string[];
+      variants: Array<{
+        id: string;
+        sku: string;
+        attributes: string;
+        priceInMinor: string;
+        quantityOnHand: number;
+        availableToSell: number;
+        imageUrl?: string | null;
+      }>;
     }>;
     promoCodes: Array<{
       code: string;
@@ -125,6 +134,9 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
         uiNewArrival
         primaryImageUrl
         imageUrls
+        variants {
+          id sku attributes priceInMinor quantityOnHand availableToSell imageUrl
+        }
       }
       promoCodes { code discountPercent minOrderSubtotalInMinor maxDiscountInMinor }
       defaultTaxRatePercent
@@ -216,6 +228,22 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
     featured: product.uiFeatured,
     bestSeller: product.uiBestSeller,
     newArrival: product.uiNewArrival,
+    variants: (product.variants ?? []).map((v) => {
+      let attrs: Record<string, string> = {};
+      try { attrs = JSON.parse(v.attributes || '{}'); } catch { /* ignore */ }
+      const priceMinor = Number(v.priceInMinor || '0');
+      return {
+        id: String(v.id),
+        sku: v.sku,
+        attributes: attrs,
+        priceInMinor: v.priceInMinor,
+        price: Math.round(priceMinor / 100),
+        quantityOnHand: v.quantityOnHand,
+        availableToSell: v.availableToSell,
+        inStock: v.availableToSell > 0,
+        imageUrl: v.imageUrl ?? null,
+      };
+    }),
   }));
 
   const partTypes = Array.from(new Set(products.map((product) => product.partType))).sort((a, b) =>
@@ -247,7 +275,7 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
 
 export async function createStorefrontOrder(
   input: {
-    lines: Array<{ sku: string; quantity: number }>;
+    lines: Array<{ sku: string; quantity: number; variantSku?: string }>;
     contactPhone: string;
     contactEmail: string;
     promoCode?: string;

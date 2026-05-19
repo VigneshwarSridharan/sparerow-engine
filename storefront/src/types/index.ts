@@ -16,6 +16,18 @@ export interface Model {
   productCount: number;
 }
 
+export interface ProductVariant {
+  id: string;
+  sku: string;
+  attributes: Record<string, string>;
+  priceInMinor: string;
+  price: number;
+  quantityOnHand: number;
+  availableToSell: number;
+  inStock: boolean;
+  imageUrl: string | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -37,11 +49,13 @@ export interface Product {
   featured: boolean;
   bestSeller: boolean;
   newArrival: boolean;
+  variants: ProductVariant[];
 }
 
 export interface CartItem {
   product: Product;
   quantity: number;
+  variantSku?: string;
 }
 
 export interface WishlistItem {

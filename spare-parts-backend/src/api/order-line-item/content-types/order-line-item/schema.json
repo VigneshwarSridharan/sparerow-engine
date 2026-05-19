@@ -19,6 +19,10 @@
       "type": "string",
       "required": true
     },
+    "variantSkuSnapshot": {
+      "type": "string",
+      "required": false
+    },
     "nameSnapshot": {
       "type": "string",
       "required": true

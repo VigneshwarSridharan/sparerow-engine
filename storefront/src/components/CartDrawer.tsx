@@ -42,34 +42,39 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
         ) : (
           <>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {items.map(item => (
-                <div key={item.product.id} className="flex gap-3 p-3 rounded-lg bg-muted/30">
+              {items.map(item => {
+                const variant = item.variantSku ? item.product.variants.find((v) => v.sku === item.variantSku) : undefined;
+                const unitPrice = variant ? variant.price : item.product.discountPrice;
+                const itemKey = `${item.product.id}::${item.variantSku ?? ''}`;
+                return (
+                <div key={itemKey} className="flex gap-3 p-3 rounded-lg bg-muted/30">
                   <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground shrink-0">
                     {item.product.partType.slice(0, 3)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium truncate">{item.product.name}</h4>
-                    <p className="text-xs text-muted-foreground">{item.product.partType}</p>
+                    <p className="text-xs text-muted-foreground">{item.product.partType}{variant ? ` · ${Object.values(variant.attributes).join(' / ')}` : ''}</p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-1 border rounded">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.variantSku)}>
                           <Minus className="h-3 w-3" />
                         </Button>
                         <span className="w-6 text-center text-xs">{item.quantity}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.variantSku)}>
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">₹{(item.product.discountPrice * item.quantity).toLocaleString()}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.product.id)}>
+                        <span className="text-sm font-semibold">₹{(unitPrice * item.quantity).toLocaleString()}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.product.id, item.variantSku)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="border-t p-6 space-y-4">

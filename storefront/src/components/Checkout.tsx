@@ -140,7 +140,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     try {
       const created = await createStorefrontOrder(
         {
-          lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity })),
+          lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity, variantSku: item.variantSku })),
           contactPhone: form.phone,
           contactEmail: form.email,
           promoCode: couponCode || undefined,

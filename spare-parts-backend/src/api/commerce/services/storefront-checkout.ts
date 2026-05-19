@@ -12,22 +12,27 @@ import {
 } from '../../../lib/validators';
 import { lookupTaxRate, computeLineTax } from '../../../lib/tax';
 
-type CartLine = { sku: string; quantity: number };
-type NormalizedLine = { sku: string; quantity: number; product: Record<string, unknown>; categorySlug: string | null };
+type CartLine = { sku: string; quantity: number; variantSku?: string };
+type NormalizedLine = { sku: string; quantity: number; variantSku?: string; product: Record<string, unknown>; variant?: Record<string, unknown>; categorySlug: string | null };
 
 const FREE_SHIPPING_SUBTOTAL_ABOVE_PAISE = 200000n;
 const FLAT_SHIPPING_INR_99_PAISE = 9900n;
 
-function mergeLines(lines: CartLine[]): { sku: string; quantity: number }[] {
-  const map = new Map<string, number>();
+function mergeLines(lines: CartLine[]): { sku: string; quantity: number; variantSku?: string }[] {
+  const map = new Map<string, { quantity: number; variantSku?: string }>();
   for (const raw of lines) {
-    const sku = String(raw.sku || '')
-      .trim()
-      .toUpperCase();
+    const sku = String(raw.sku || '').trim().toUpperCase();
+    const variantSku = raw.variantSku ? String(raw.variantSku).trim().toUpperCase() : undefined;
     const quantity = assertPositiveInt('quantity', raw.quantity);
-    map.set(sku, (map.get(sku) || 0) + quantity);
+    const key = variantSku ? `${sku}::${variantSku}` : sku;
+    const existing = map.get(key);
+    map.set(key, { quantity: (existing?.quantity || 0) + quantity, variantSku });
   }
-  return [...map.entries()].map(([sku, quantity]) => ({ sku, quantity }));
+  return [...map.entries()].map(([key, val]) => ({
+    sku: key.includes('::') ? key.split('::')[0] : key,
+    quantity: val.quantity,
+    variantSku: val.variantSku,
+  }));
 }
 
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
@@ -109,30 +114,50 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     return strapi.db.transaction(async () => {
       const normalizedLines: NormalizedLine[] = [];
       for (const raw of lines) {
-        const { sku, quantity } = raw;
+        const { sku, quantity, variantSku } = raw;
         const product = await strapi.db.query('api::product.product').findOne({
           where: { sku, isActive: true },
           populate: ['partCategory'],
         });
         if (!product) throw new AppError(400, 'SKU_NOT_FOUND', `Unknown SKU ${sku}`);
-        const onHand = Number(product.quantityOnHand);
-        const reserved = Number(product.quantityReserved);
-        const avail = availableToSell(onHand, reserved);
-        if (avail < quantity) throw new AppError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${sku}`);
         const categorySlug =
           (product.partCategory as Record<string, unknown> | null)?.slug as string | null ?? null;
-        normalizedLines.push({ sku, quantity, product: product as unknown as Record<string, unknown>, categorySlug });
+
+        if (variantSku) {
+          const variant = await strapi.db.query('api::product-variant.product-variant').findOne({
+            where: { sku: variantSku, product: product.id, isActive: true },
+          });
+          if (!variant) throw new AppError(400, 'VARIANT_NOT_FOUND', `Unknown variant SKU ${variantSku}`);
+          const onHand = Number(variant.quantityOnHand);
+          const reserved = Number(variant.quantityReserved);
+          const avail = availableToSell(onHand, reserved);
+          if (avail < quantity) throw new AppError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${variantSku}`);
+          normalizedLines.push({ sku, quantity, variantSku, product: product as unknown as Record<string, unknown>, variant: variant as unknown as Record<string, unknown>, categorySlug });
+        } else {
+          const onHand = Number(product.quantityOnHand);
+          const reserved = Number(product.quantityReserved);
+          const avail = availableToSell(onHand, reserved);
+          if (avail < quantity) throw new AppError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${sku}`);
+          normalizedLines.push({ sku, quantity, product: product as unknown as Record<string, unknown>, categorySlug });
+        }
       }
 
       for (const row of normalizedLines) {
-        const p = row.product;
-        const id = p.id as number;
-        const reserved = Number(p.quantityReserved);
-        const quantity = row.quantity;
-        await strapi.db.query('api::product.product').update({
-          where: { id },
-          data: { quantityReserved: reserved + quantity },
-        });
+        if (row.variant) {
+          const v = row.variant;
+          const id = v.id as number;
+          await strapi.db.query('api::product-variant.product-variant').update({
+            where: { id },
+            data: { quantityReserved: Number(v.quantityReserved) + row.quantity },
+          });
+        } else {
+          const p = row.product;
+          const id = p.id as number;
+          await strapi.db.query('api::product.product').update({
+            where: { id },
+            data: { quantityReserved: Number(p.quantityReserved) + row.quantity },
+          });
+        }
       }
 
       let subtotal = 0n;
@@ -140,6 +165,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       const shippingStateCode = shipSnap.shippingState;
       const linePayloads: {
         skuSnapshot: string;
+        variantSkuSnapshot?: string;
         nameSnapshot: string;
         unitPriceInMinor: bigint;
         quantity: number;
@@ -148,7 +174,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       }[] = [];
 
       for (const row of normalizedLines) {
-        const p = row.product;
+        const p = row.variant ?? row.product;
         const unit = assertSafeMinorAmount('unitPrice', p.priceInMinor);
         const qty = row.quantity;
         const lt = lineTotal(unit, qty);
@@ -156,12 +182,13 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         const ratePercent = await lookupTaxRate(strapi, row.categorySlug, shippingStateCode);
         tax += computeLineTax(unit, qty, ratePercent);
         linePayloads.push({
-          skuSnapshot: String(p.sku),
-          nameSnapshot: String(p.name),
+          skuSnapshot: String(row.product.sku),
+          variantSkuSnapshot: row.variantSku,
+          nameSnapshot: String(row.product.name),
           unitPriceInMinor: unit,
           quantity: qty,
           lineTotalInMinor: lt,
-          product: p.id as number,
+          product: row.product.id as number,
         });
       }
 
@@ -218,6 +245,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         await strapi.db.query('api::order-line-item.order-line-item').create({
           data: {
             skuSnapshot: lp.skuSnapshot,
+            variantSkuSnapshot: lp.variantSkuSnapshot ?? null,
             nameSnapshot: lp.nameSnapshot,
             unitPriceInMinor: lp.unitPriceInMinor.toString(),
             quantity: lp.quantity,
@@ -254,6 +282,20 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       populate: ['product'],
     });
     for (const li of items) {
+      const variantSnap = (li as Record<string, unknown>).variantSkuSnapshot as string | null;
+      if (variantSnap) {
+        const variant = await strapi.db.query('api::product-variant.product-variant').findOne({
+          where: { sku: variantSnap },
+        });
+        if (variant) {
+          const q = Number(variant.quantityReserved) - Number(li.quantity);
+          await strapi.db.query('api::product-variant.product-variant').update({
+            where: { id: variant.id },
+            data: { quantityReserved: Math.max(0, q) },
+          });
+        }
+        continue;
+      }
       const prod = li.product as { id?: number } | null;
       if (!prod?.id) continue;
       const p = await strapi.db.query('api::product.product').findOne({ where: { id: prod.id } });
