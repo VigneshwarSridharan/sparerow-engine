@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck, X, ZoomIn } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { getPartImage } from '@/lib/partImages';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
@@ -144,6 +144,7 @@ export default function ProductDetailsPage() {
       {/* Lightbox */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-3xl p-2 bg-background/95 backdrop-blur">
+          <DialogTitle className="sr-only">{product.name}</DialogTitle>
           <button
             onClick={() => setLightboxOpen(false)}
             className="absolute top-3 right-3 z-10 bg-background rounded-full p-1.5 shadow"
