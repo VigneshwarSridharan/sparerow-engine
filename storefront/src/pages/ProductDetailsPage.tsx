@@ -31,6 +31,25 @@ export default function ProductDetailsPage() {
 
   const hasVariants = (product?.variants.length ?? 0) > 0;
 
+  // These hooks must be before any early returns to satisfy Rules of Hooks
+  const variantAttributeKeys = useMemo(() => {
+    if (!product) return [];
+    const keys = new Set<string>();
+    product.variants.forEach((v) => Object.keys(v.attributes).forEach((k) => keys.add(k)));
+    return Array.from(keys);
+  }, [product]);
+
+  const variantsByAttr = useMemo(() => {
+    if (!product) return new Map<string, Set<string>>();
+    const map = new Map<string, Set<string>>();
+    for (const key of variantAttributeKeys) {
+      const values = new Set<string>();
+      product.variants.forEach((v) => { if (v.attributes[key]) values.add(v.attributes[key]); });
+      map.set(key, values);
+    }
+    return map;
+  }, [product, variantAttributeKeys]);
+
   if (!product && !isLoading) {
     return (
       <div className="container py-20 text-center">
@@ -56,22 +75,6 @@ export default function ProductDetailsPage() {
 
   const displayPrice = selectedVariant ? selectedVariant.price : product.discountPrice;
   const displayInStock = selectedVariant ? selectedVariant.inStock : product.inStock;
-
-  const variantAttributeKeys = useMemo(() => {
-    const keys = new Set<string>();
-    product.variants.forEach((v) => Object.keys(v.attributes).forEach((k) => keys.add(k)));
-    return Array.from(keys);
-  }, [product.variants]);
-
-  const variantsByAttr = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const key of variantAttributeKeys) {
-      const values = new Set<string>();
-      product.variants.forEach((v) => { if (v.attributes[key]) values.add(v.attributes[key]); });
-      map.set(key, values);
-    }
-    return map;
-  }, [product.variants, variantAttributeKeys]);
 
   function selectVariantByAttr(key: string, value: string) {
     const current = selectedVariant?.attributes ?? {};
