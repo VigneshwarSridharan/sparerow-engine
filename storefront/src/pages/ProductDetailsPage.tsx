@@ -10,6 +10,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { ProductCard } from '@/components/ProductCard';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { ProductVariant } from '@/types';
 
 export default function ProductDetailsPage() {
   const navigate = useNavigate();
@@ -21,11 +22,14 @@ export default function ProductDetailsPage() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   const product = useMemo(
     () => products.find((item) => item.id === productId),
     [products, productId]
   );
+
+  const hasVariants = (product?.variants.length ?? 0) > 0;
 
   if (!product && !isLoading) {
     return (
@@ -47,11 +51,41 @@ export default function ProductDetailsPage() {
   const brand = brands.find((item) => item.id === product.brandId);
   const model = models.find((item) => item.id === product.modelId);
   const fallbackImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
+  const galleryImages: string[] = product.images.length > 0 ? product.images : [fallbackImage];
+  const activeImage = (selectedVariant?.imageUrl) || galleryImages[activeIndex] || fallbackImage;
 
-  const galleryImages: string[] =
-    product.images.length > 0 ? product.images : [fallbackImage];
+  const displayPrice = selectedVariant ? selectedVariant.price : product.discountPrice;
+  const displayInStock = selectedVariant ? selectedVariant.inStock : product.inStock;
 
-  const activeImage = galleryImages[activeIndex] ?? fallbackImage;
+  const variantAttributeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    product.variants.forEach((v) => Object.keys(v.attributes).forEach((k) => keys.add(k)));
+    return Array.from(keys);
+  }, [product.variants]);
+
+  const variantsByAttr = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const key of variantAttributeKeys) {
+      const values = new Set<string>();
+      product.variants.forEach((v) => { if (v.attributes[key]) values.add(v.attributes[key]); });
+      map.set(key, values);
+    }
+    return map;
+  }, [product.variants, variantAttributeKeys]);
+
+  function selectVariantByAttr(key: string, value: string) {
+    const current = selectedVariant?.attributes ?? {};
+    const next = { ...current, [key]: value };
+    const match = product.variants.find((v) =>
+      Object.entries(next).every(([k, val]) => v.attributes[k] === val)
+    );
+    setSelectedVariant(match ?? null);
+  }
+
+  function handleAddToCart() {
+    if (hasVariants && !selectedVariant) return;
+    addToCart(product, 1, selectedVariant?.sku);
+  }
 
   return (
     <div className="container py-8">
@@ -115,18 +149,63 @@ export default function ProductDetailsPage() {
           </div>
 
           <div className="flex items-center gap-3 mt-5">
-            <p className="text-3xl font-bold text-primary">₹{product.discountPrice.toLocaleString()}</p>
-            {product.discountPercent > 0 && <p className="text-lg text-muted-foreground line-through">₹{product.price.toLocaleString()}</p>}
+            <p className="text-3xl font-bold text-primary">₹{displayPrice.toLocaleString()}</p>
+            {!selectedVariant && product.discountPercent > 0 && (
+              <p className="text-lg text-muted-foreground line-through">₹{product.price.toLocaleString()}</p>
+            )}
           </div>
 
+          {hasVariants && (
+            <div className="mt-5 space-y-4">
+              {variantAttributeKeys.map((key) => (
+                <div key={key}>
+                  <p className="text-sm font-medium capitalize mb-2">{key}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(variantsByAttr.get(key) ?? []).map((value) => {
+                      const isSelected = selectedVariant?.attributes[key] === value;
+                      const matchingVariant = product.variants.find(
+                        (v) => v.attributes[key] === value
+                      );
+                      const isAvailable = matchingVariant?.inStock ?? false;
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => selectVariantByAttr(key, value)}
+                          disabled={!isAvailable}
+                          className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : isAvailable
+                              ? 'border-border hover:border-primary'
+                              : 'border-border text-muted-foreground line-through opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {hasVariants && !selectedVariant && (
+                <p className="text-sm text-muted-foreground">Please select a variant to add to cart.</p>
+              )}
+            </div>
+          )}
+
           <p className="mt-5 text-muted-foreground">{product.description}</p>
-          <p className="mt-2 text-sm text-muted-foreground">SKU: {product.sku}</p>
+          <p className="mt-2 text-sm text-muted-foreground">SKU: {selectedVariant ? selectedVariant.sku : product.sku}</p>
           <p className="mt-1 text-sm text-muted-foreground">Warranty: {product.warranty}</p>
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-            <Button size="lg" className="flex-1" disabled={!product.inStock} onClick={() => addToCart(product)}>
+            <Button
+              size="lg"
+              className="flex-1"
+              disabled={!displayInStock || (hasVariants && !selectedVariant)}
+              onClick={handleAddToCart}
+            >
               <ShoppingCart className="h-4 w-4 mr-2" />
-              {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+              {!displayInStock ? 'Out of Stock' : hasVariants && !selectedVariant ? 'Select a variant' : 'Add to Cart'}
             </Button>
             <Button size="lg" variant="outline" onClick={() => toggleWishlist(product.id)}>
               <Heart className={`h-4 w-4 mr-2 ${isInWishlist(product.id) ? 'fill-destructive text-destructive' : ''}`} />

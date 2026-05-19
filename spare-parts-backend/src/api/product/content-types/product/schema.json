@@ -64,6 +64,12 @@
       "relation": "manyToOne",
       "target": "api::part-category.part-category",
       "inversedBy": "products"
+    },
+    "variants": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::product-variant.product-variant",
+      "mappedBy": "product"
     }
   }
 }

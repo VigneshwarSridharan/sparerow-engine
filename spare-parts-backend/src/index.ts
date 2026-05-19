@@ -69,6 +69,18 @@ export default {
           productCount: Int!
         }
 
+        type StorefrontProductVariant {
+          id: ID!
+          sku: String!
+          attributes: String
+          priceInMinor: String!
+          quantityOnHand: Int!
+          quantityReserved: Int!
+          availableToSell: Int!
+          imageUrl: String
+          isActive: Boolean!
+        }
+
         type StorefrontProduct {
           id: ID!
           documentId: String
@@ -98,6 +110,7 @@ export default {
           uiWarranty: String!
           primaryImageUrl: String
           imageUrls: [String!]!
+          variants: [StorefrontProductVariant!]!
         }
 
         type StorefrontPromoCode {
@@ -178,6 +191,7 @@ export default {
         input StorefrontCheckoutLineInput {
           sku: String!
           quantity: Int!
+          variantSku: String
         }
 
         input StorefrontGuestShippingInput {

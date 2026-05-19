@@ -11,12 +11,36 @@ function resolveMediaUrl(strapi: Core.Strapi, raw: unknown): string | null {
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
+
+function serializeVariant(strapi: Core.Strapi, v: Record<string, unknown>) {
+  const onHand = Number(v.quantityOnHand ?? 0);
+  const reserved = Number(v.quantityReserved ?? 0);
+  return {
+    id: v.id,
+    sku: v.sku,
+    attributes: v.attributes ? JSON.stringify(v.attributes) : '{}',
+    priceInMinor: String(v.priceInMinor ?? '0'),
+    quantityOnHand: onHand,
+    quantityReserved: reserved,
+    availableToSell: availableToSell(onHand, reserved),
+    imageUrl: resolveMediaUrl(strapi, v.image),
+    isActive: v.isActive,
+  };
+}
+
+
 function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
   const onHand = Number(p.quantityOnHand ?? 0);
   const reserved = Number(p.quantityReserved ?? 0);
   const primaryImageUrl = resolveMediaUrl(strapi, p.primaryImage);
   const imageUrls: string[] = Array.isArray(p.images)
     ? (p.images as unknown[]).map((img) => resolveMediaUrl(strapi, img)).filter((u): u is string => u !== null)
+    : [];
+  const variants = Array.isArray(p.variants)
+    ? (p.variants as unknown[])
+        .filter((v): v is Record<string, unknown> => !!v && typeof v === 'object')
+        .filter((v) => v.isActive !== false)
+        .map((v) => serializeVariant(strapi, v))
     : [];
   return {
     id: p.id,
@@ -33,6 +57,7 @@ function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
     isActive: p.isActive,
     partModel: p.partModel,
     partCategory: p.partCategory,
+    variants,
   };
 }
 
@@ -80,7 +105,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     if (!model) throw new AppError(404, 'MODEL_NOT_FOUND', 'Model not found');
     const products = await strapi.db.query('api::product.product').findMany({
       where: { partModel: model.id, isActive: true },
-      populate: ['partCategory', 'primaryImage', 'images'],
+      populate: { partCategory: true, primaryImage: true, images: true, variants: { populate: ['image'] } },
       orderBy: { name: 'asc' },
     });
     return products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
@@ -146,9 +171,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         partCategory: true,
         primaryImage: true,
         images: true,
-        partModel: {
-          populate: { brand: true },
-        },
+        partModel: { populate: { brand: true } },
+        variants: { populate: ['image'] },
       },
       orderBy: { name: 'asc' },
     });
@@ -173,7 +197,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, partModel: model.id, isActive: true },
-      populate: ['partCategory', 'primaryImage', 'images'],
+      populate: { partCategory: true, primaryImage: true, images: true, variants: { populate: ['image'] } },
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
     return serializeProduct(strapi, p as unknown as Record<string, unknown>);
@@ -183,7 +207,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, isActive: true },
-      populate: ['partModel', 'partCategory', 'primaryImage', 'images'],
+      populate: { partModel: true, partCategory: true, primaryImage: true, images: true, variants: { populate: ['image'] } },
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
     return serializeProduct(strapi, p as unknown as Record<string, unknown>);
