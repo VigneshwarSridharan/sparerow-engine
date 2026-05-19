@@ -1,8 +1,11 @@
+import crypto from 'crypto';
 import type { Core } from '@strapi/strapi';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../../../lib/errors';
 import { assertEmailOptional, assertIndianMobile } from '../../../lib/validators';
+import { sendEmail } from '../../../lib/mailer';
+import { passwordResetHtml } from '../../../lib/email-templates/password-reset';
 
 const SALT_ROUNDS = 12;
 
@@ -101,6 +104,54 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       if (email) await claimGuestOrders(account.id as number, email);
       const token = signCustomerToken(account.id as number);
       return { token, customer: { id: account.id, email: account.email, phone: account.phone } };
+    },
+
+    async requestPasswordReset(email: string) {
+      const normalised = assertEmailOptional('email', email);
+      if (!normalised) throw new AppError(400, 'EMAIL_REQUIRED', 'Email is required');
+      const account = await strapi.db.query('api::customer-account.customer-account').findOne({
+        where: { email: normalised },
+      });
+      // Return silently if account not found to avoid enumeration
+      if (!account) return { ok: true };
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await strapi.db.query('api::customer-account.customer-account').update({
+        where: { id: account.id as number },
+        data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt },
+      });
+      const storefrontUrl = strapi.config.get<string>('customer.storefrontUrl');
+      const resetLink = `${storefrontUrl}/reset-password?token=${token}`;
+      await sendEmail(
+        strapi,
+        normalised,
+        'Reset your SpareHub password',
+        passwordResetHtml({ resetLink, contactEmail: normalised })
+      );
+      return { ok: true };
+    },
+
+    async resetPassword(token: string, newPassword: string) {
+      if (!newPassword || newPassword.length < 8) {
+        throw new AppError(400, 'WEAK_PASSWORD', 'Password must be at least 8 characters');
+      }
+      const now = new Date();
+      const account = await strapi.db.query('api::customer-account.customer-account').findOne({
+        where: { passwordResetToken: token },
+      });
+      if (
+        !account ||
+        !account.passwordResetExpiresAt ||
+        new Date(account.passwordResetExpiresAt as string) < now
+      ) {
+        throw new AppError(400, 'INVALID_RESET_TOKEN', 'Reset link is invalid or has expired');
+      }
+      const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await strapi.db.query('api::customer-account.customer-account').update({
+        where: { id: account.id as number },
+        data: { passwordHash, passwordResetToken: null, passwordResetExpiresAt: null },
+      });
+      return { ok: true };
     },
 
     async session(authorization?: string) {

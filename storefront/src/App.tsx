@@ -15,6 +15,8 @@ import WishlistPage from "./pages/WishlistPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.tsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
 import AccountOrdersPage from "./pages/AccountOrdersPage.tsx";
 import AccountOrderDetailPage from "./pages/AccountOrderDetailPage.tsx";
 import AccountAddressesPage from "./pages/AccountAddressesPage.tsx";
@@ -52,6 +54,8 @@ const App = () => (
                       <Route path="faq" element={<FaqPage />} />
                       <Route path="login" element={<LoginPage />} />
                       <Route path="register" element={<RegisterPage />} />
+                      <Route path="forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="reset-password" element={<ResetPasswordPage />} />
                       <Route
                         path="account"
                         element={

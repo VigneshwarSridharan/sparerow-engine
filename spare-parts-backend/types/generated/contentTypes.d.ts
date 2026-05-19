@@ -566,6 +566,9 @@ export interface ApiCustomerAccountCustomerAccount
     passwordHash: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Private;
+    passwordResetExpiresAt: Schema.Attribute.DateTime &
+      Schema.Attribute.Private;
+    passwordResetToken: Schema.Attribute.String & Schema.Attribute.Private;
     phone: Schema.Attribute.String & Schema.Attribute.Unique;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;

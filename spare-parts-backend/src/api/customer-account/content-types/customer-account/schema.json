@@ -35,6 +35,14 @@
       "relation": "oneToMany",
       "target": "api::order.order",
       "mappedBy": "customerAccount"
+    },
+    "passwordResetToken": {
+      "type": "string",
+      "private": true
+    },
+    "passwordResetExpiresAt": {
+      "type": "datetime",
+      "private": true
     }
   }
 }
