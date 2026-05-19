@@ -838,7 +838,10 @@ export default {
         StorefrontOrder: {
           createdAt: (parent: Record<string, unknown>) =>
             parent.createdAt != null ? String(parent.createdAt) : null,
+          taxInMinor: (parent: Record<string, unknown>) => String(parent.taxInMinor ?? '0'),
           taxRatePercent: (parent: Record<string, unknown>) => Number(parent.taxRatePercent ?? 0),
+          contactEmail: (parent: Record<string, unknown>) => String(parent.contactEmail ?? ''),
+          contactPhone: (parent: Record<string, unknown>) => String(parent.contactPhone ?? ''),
           shipments: (parent: Record<string, unknown>) => {
             const rows = parent.shipments;
             return Array.isArray(rows) ? rows : [];
