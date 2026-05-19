@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck } from 'lucide-react';
+import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck, X, ZoomIn } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { getPartImage } from '@/lib/partImages';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
@@ -17,6 +18,9 @@ export default function ProductDetailsPage() {
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const product = useMemo(
     () => products.find((item) => item.id === productId),
@@ -42,7 +46,12 @@ export default function ProductDetailsPage() {
 
   const brand = brands.find((item) => item.id === product.brandId);
   const model = models.find((item) => item.id === product.modelId);
-  const heroImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
+  const fallbackImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
+
+  const galleryImages: string[] =
+    product.images.length > 0 ? product.images : [fallbackImage];
+
+  const activeImage = galleryImages[activeIndex] ?? fallbackImage;
 
   return (
     <div className="container py-8">
@@ -55,8 +64,39 @@ export default function ProductDetailsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 items-start">
-        <div className="rounded-2xl border bg-muted/40 p-8 flex items-center justify-center min-h-[360px]">
-          <img src={heroImage} alt={product.partType} className="max-h-80 object-contain" />
+        {/* Image gallery */}
+        <div className="flex flex-col gap-3">
+          <div
+            className="relative rounded-2xl border bg-muted/40 flex items-center justify-center min-h-[360px] cursor-zoom-in group overflow-hidden"
+            onClick={() => setLightboxOpen(true)}
+          >
+            <img
+              src={activeImage}
+              alt={product.partType}
+              className="max-h-80 object-contain transition-transform duration-200 group-hover:scale-105"
+            />
+            <div className="absolute bottom-3 right-3 bg-background/70 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ZoomIn className="h-4 w-4 text-foreground" />
+            </div>
+          </div>
+
+          {galleryImages.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {galleryImages.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`shrink-0 rounded-lg border-2 bg-muted/40 p-1 w-16 h-16 flex items-center justify-center transition-colors ${
+                    idx === activeIndex
+                      ? 'border-primary'
+                      : 'border-transparent hover:border-muted-foreground/40'
+                  }`}
+                >
+                  <img src={url} alt={`${product.partType} view ${idx + 1}`} className="max-h-12 object-contain" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -100,6 +140,38 @@ export default function ProductDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Lightbox */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-3xl p-2 bg-background/95 backdrop-blur">
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-3 right-3 z-10 bg-background rounded-full p-1.5 shadow"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-center min-h-[400px]">
+              <img src={activeImage} alt={product.partType} className="max-h-[70vh] max-w-full object-contain" />
+            </div>
+            {galleryImages.length > 1 && (
+              <div className="flex gap-2 justify-center overflow-x-auto pb-1">
+                {galleryImages.map((url, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveIndex(idx)}
+                    className={`shrink-0 rounded-lg border-2 bg-muted/40 p-1 w-14 h-14 flex items-center justify-center transition-colors ${
+                      idx === activeIndex ? 'border-primary' : 'border-transparent hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    <img src={url} alt={`view ${idx + 1}`} className="max-h-10 object-contain" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <section className="mt-14">
         <h2 className="text-2xl font-bold mb-6">You may also like</h2>

@@ -29,6 +29,12 @@
       "required": false,
       "allowedTypes": ["images"]
     },
+    "images": {
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
     "priceInMinor": {
       "type": "biginteger",
       "required": true
