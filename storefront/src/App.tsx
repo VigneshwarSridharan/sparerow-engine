@@ -20,6 +20,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage.tsx";
 import AccountOrdersPage from "./pages/AccountOrdersPage.tsx";
 import AccountOrderDetailPage from "./pages/AccountOrderDetailPage.tsx";
 import AccountAddressesPage from "./pages/AccountAddressesPage.tsx";
+import AccountReturnsPage from "./pages/AccountReturnsPage.tsx";
 import TermsPage from "./pages/TermsPage.tsx";
 import PrivacyPage from "./pages/PrivacyPage.tsx";
 import FaqPage from "./pages/FaqPage.tsx";
@@ -68,6 +69,7 @@ const App = () => (
                         <Route path="orders" element={<AccountOrdersPage />} />
                         <Route path="orders/:orderId" element={<AccountOrderDetailPage />} />
                         <Route path="addresses" element={<AccountAddressesPage />} />
+                        <Route path="returns" element={<AccountReturnsPage />} />
                       </Route>
                     </Route>
                     <Route path="*" element={<NotFound />} />

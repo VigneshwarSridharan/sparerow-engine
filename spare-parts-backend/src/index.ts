@@ -322,6 +322,35 @@ export default {
           body: String
         }
 
+        type StorefrontReturnLineItem {
+          skuSnapshot: String!
+          nameSnapshot: String!
+          quantity: Int!
+          unitPriceInMinor: String!
+        }
+
+        type StorefrontReturnRequest {
+          id: ID!
+          orderId: ID!
+          reason: String!
+          status: String!
+          notes: String
+          refundAmountInMinor: String
+          lineItems: [StorefrontReturnLineItem!]!
+          createdAt: String!
+        }
+
+        input StorefrontReturnLineItemInput {
+          lineItemId: ID!
+        }
+
+        input StorefrontCreateReturnRequestInput {
+          orderId: ID!
+          reason: String!
+          lineItems: [StorefrontReturnLineItemInput!]!
+          notes: String
+        }
+
         type Query {
           storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
           storefrontProducts(filter: StorefrontCatalogFilterInput): [StorefrontProduct!]!
@@ -332,6 +361,7 @@ export default {
           storefrontAddresses(token: String!): [StorefrontAddress!]!
           storefrontOrders(token: String!): [StorefrontOrder!]!
           storefrontOrder(id: ID!, token: String!): StorefrontOrder
+          storefrontReturnRequests(token: String!): [StorefrontReturnRequest!]!
           storefrontCmsPage(slug: String!): StorefrontCmsPage
           storefrontFaqs: [StorefrontFaq!]!
           storefrontProductReviews(sku: String!, page: Int): StorefrontProductReviewsPayload!
@@ -347,6 +377,7 @@ export default {
           storefrontCreateOrder(token: String, input: StorefrontCreateOrderInput!): StorefrontCreateOrderPayload!
           storefrontPrepareRazorpayPayment(orderId: ID!, paymentContinuationSecret: String!): StorefrontRazorpayPreparedOrder!
           storefrontVerifyRazorpayPayment(input: StorefrontVerifyRazorpayPaymentInput!): StorefrontOrder!
+          storefrontCreateReturnRequest(token: String!, input: StorefrontCreateReturnRequestInput!): StorefrontReturnRequest!
           storefrontRequestPasswordReset(email: String!): StorefrontMutationResult!
           storefrontResetPassword(token: String!, newPassword: String!): StorefrontMutationResult!
           storefrontCreateReview(token: String, input: StorefrontCreateReviewInput!): StorefrontReview!
@@ -673,6 +704,20 @@ export default {
               throwGraphQLError(error);
             }
           },
+          storefrontReturnRequests: async (_: unknown, args: { token: string }) => {
+            try {
+              const auth = strapi.service('api::commerce.storefront-auth') as {
+                verifyCustomerToken: (token: string) => { sub: number };
+              };
+              const { sub } = auth.verifyCustomerToken(args.token);
+              const returnsService = strapi.service('api::commerce.storefront-returns') as {
+                getReturnRequests: (customerId: number) => Promise<Array<Record<string, unknown>>>;
+              };
+              return returnsService.getReturnRequests(sub);
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
           storefrontCmsPage: async (_: unknown, args: { slug: string }) => {
             try {
               const slug = String(args.slug || '').trim();
@@ -778,6 +823,43 @@ export default {
                 }
               }
               return reviewService.createReview({ ...args.input, customerId });
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontCreateReturnRequest: async (
+            _: unknown,
+            args: {
+              token: string;
+              input: {
+                orderId: string;
+                reason: string;
+                lineItems: Array<{ lineItemId: string }>;
+                notes?: string;
+              };
+            }
+          ) => {
+            try {
+              const auth = strapi.service('api::commerce.storefront-auth') as {
+                verifyCustomerToken: (token: string) => { sub: number };
+              };
+              const { sub } = auth.verifyCustomerToken(args.token);
+              const returnsService = strapi.service('api::commerce.storefront-returns') as {
+                createReturnRequest: (input: {
+                  orderId: string | number;
+                  customerId: number;
+                  reason: string;
+                  lineItems: Array<{ lineItemId: number }>;
+                  notes?: string;
+                }) => Promise<Record<string, unknown>>;
+              };
+              return returnsService.createReturnRequest({
+                orderId: args.input.orderId,
+                customerId: sub,
+                reason: args.input.reason,
+                lineItems: args.input.lineItems.map((l) => ({ lineItemId: Number(l.lineItemId) })),
+                notes: args.input.notes,
+              });
             } catch (error) {
               throwGraphQLError(error);
             }
@@ -971,6 +1053,8 @@ export default {
         'Mutation.storefrontVerifyRazorpayPayment': { auth: false },
         'Mutation.storefrontRequestPasswordReset': { auth: false },
         'Mutation.storefrontResetPassword': { auth: false },
+        'Query.storefrontReturnRequests': { auth: false },
+        'Mutation.storefrontCreateReturnRequest': { auth: false },
         'Query.storefrontCmsPage': { auth: false },
         'Query.storefrontFaqs': { auth: false },
         'Query.storefrontProductReviews': { auth: false },

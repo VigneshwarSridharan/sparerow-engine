@@ -768,6 +768,44 @@ const CREATE_REVIEW_MUTATION = `
   }
 `;
 
+export interface StorefrontReturnLineItem {
+  skuSnapshot: string;
+  nameSnapshot: string;
+  quantity: number;
+  unitPriceInMinor: string;
+}
+
+export interface StorefrontReturnRequest {
+  id: string;
+  orderId: string;
+  reason: string;
+  status: string;
+  notes?: string | null;
+  refundAmountInMinor?: string | null;
+  lineItems: StorefrontReturnLineItem[];
+  createdAt: string;
+}
+
+const RETURN_REQUESTS_QUERY = `
+  query ReturnRequests($token: String!) {
+    storefrontReturnRequests(token: $token) {
+      id
+      orderId
+      reason
+      status
+      notes
+      refundAmountInMinor
+      lineItems {
+        skuSnapshot
+        nameSnapshot
+        quantity
+        unitPriceInMinor
+      }
+      createdAt
+    }
+  }
+`;
+
 export async function fetchProductReviews(
   sku: string,
   page = 1
@@ -788,6 +826,50 @@ export async function createProductReview(
     { token?: string | null; input: typeof input }
   >(CREATE_REVIEW_MUTATION, { token: token ?? null, input });
   return data.storefrontCreateReview;
+}
+
+const CREATE_RETURN_REQUEST_MUTATION = `
+  mutation CreateReturnRequest($token: String!, $input: StorefrontCreateReturnRequestInput!) {
+    storefrontCreateReturnRequest(token: $token, input: $input) {
+      id
+      orderId
+      reason
+      status
+      notes
+      refundAmountInMinor
+      lineItems {
+        skuSnapshot
+        nameSnapshot
+        quantity
+        unitPriceInMinor
+      }
+      createdAt
+    }
+  }
+`;
+
+export async function fetchReturnRequests(token: string): Promise<StorefrontReturnRequest[]> {
+  const data = await graphqlRequest<
+    { storefrontReturnRequests: StorefrontReturnRequest[] },
+    { token: string }
+  >(RETURN_REQUESTS_QUERY, { token });
+  return data.storefrontReturnRequests;
+}
+
+export async function createReturnRequest(
+  token: string,
+  input: {
+    orderId: string;
+    reason: string;
+    lineItems: Array<{ lineItemId: string }>;
+    notes?: string;
+  }
+): Promise<StorefrontReturnRequest> {
+  const data = await graphqlRequest<
+    { storefrontCreateReturnRequest: StorefrontReturnRequest },
+    { token: string; input: typeof input }
+  >(CREATE_RETURN_REQUEST_MUTATION, { token, input });
+  return data.storefrontCreateReturnRequest;
 }
 
 /** Display INR from minor units (paise) as returned by the API. */

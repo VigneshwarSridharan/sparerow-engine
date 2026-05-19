@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
-import { Package, MapPin, LogOut } from 'lucide-react';
+import { Package, MapPin, LogOut, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -31,6 +31,10 @@ export function AccountLayout() {
             <NavLink to="/account/addresses" className={linkClass}>
               <MapPin className="h-4 w-4" />
               Addresses
+            </NavLink>
+            <NavLink to="/account/returns" className={linkClass}>
+              <RotateCcw className="h-4 w-4" />
+              Returns
             </NavLink>
             <Button variant="ghost" className="justify-start text-muted-foreground" onClick={() => logout()}>
               <LogOut className="h-4 w-4 mr-2" />
