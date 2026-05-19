@@ -996,6 +996,49 @@ export interface ApiProductVariantProductVariant extends Struct.CollectionTypeSc
   };
 }
 
+export interface ApiReturnRequestReturnRequest extends Struct.CollectionTypeSchema {
+  collectionName: 'return_requests';
+  info: {
+    displayName: 'Return Request';
+    pluralName: 'return-requests';
+    singularName: 'return-request';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    customerAccount: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::customer-account.customer-account'
+    >;
+    lineItems: Schema.Attribute.JSON & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::return-request.return-request'
+    > &
+      Schema.Attribute.Private;
+    notes: Schema.Attribute.Text;
+    order: Schema.Attribute.Relation<'manyToOne', 'api::order.order'>;
+    reason: Schema.Attribute.Enumeration<
+      ['DEFECTIVE', 'WRONG_ITEM', 'NOT_AS_DESCRIBED', 'CHANGED_MIND', 'OTHER']
+    > &
+      Schema.Attribute.Required;
+    refundAmountInMinor: Schema.Attribute.BigInteger;
+    status: Schema.Attribute.Enumeration<
+      ['PENDING', 'APPROVED', 'REJECTED', 'REFUNDED']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'PENDING'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
 export interface ApiPromoCodePromoCode extends Struct.CollectionTypeSchema {
   collectionName: 'promo_codes';
   info: {
@@ -1693,6 +1736,7 @@ declare module '@strapi/strapi' {
       'api::product-variant.product-variant': ApiProductVariantProductVariant;
       'api::product.product': ApiProductProduct;
       'api::promo-code.promo-code': ApiPromoCodePromoCode;
+      'api::return-request.return-request': ApiReturnRequestReturnRequest;
       'api::shipment.shipment': ApiShipmentShipment;
       'api::tax-rule.tax-rule': ApiTaxRuleTaxRule;
       'api::webhook-delivery.webhook-delivery': ApiWebhookDeliveryWebhookDelivery;

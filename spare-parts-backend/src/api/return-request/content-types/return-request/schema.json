@@ -1,0 +1,56 @@
+{
+  "kind": "collectionType",
+  "collectionName": "return_requests",
+  "info": {
+    "singularName": "return-request",
+    "pluralName": "return-requests",
+    "displayName": "Return Request"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "order": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::order.order"
+    },
+    "customerAccount": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::customer-account.customer-account"
+    },
+    "lineItems": {
+      "type": "json",
+      "required": true
+    },
+    "reason": {
+      "type": "enumeration",
+      "enum": [
+        "DEFECTIVE",
+        "WRONG_ITEM",
+        "NOT_AS_DESCRIBED",
+        "CHANGED_MIND",
+        "OTHER"
+      ],
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "REFUNDED"
+      ],
+      "required": true,
+      "default": "PENDING"
+    },
+    "refundAmountInMinor": {
+      "type": "biginteger"
+    },
+    "notes": {
+      "type": "text"
+    }
+  }
+}
