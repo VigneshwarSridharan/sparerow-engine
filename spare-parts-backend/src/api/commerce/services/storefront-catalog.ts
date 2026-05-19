@@ -2,20 +2,22 @@ import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
 import { availableToSell, assertSlug } from '../../../lib/validators';
 
+function resolveMediaUrl(strapi: Core.Strapi, raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object' || !('url' in raw)) return null;
+  const url = (raw as { url: unknown }).url;
+  if (typeof url !== 'string') return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const base = String(strapi.config.get('server.url') ?? '').replace(/\/+$/, '');
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
   const onHand = Number(p.quantityOnHand ?? 0);
   const reserved = Number(p.quantityReserved ?? 0);
-  const img = p.primaryImage;
-  let primaryImageUrl: string | null = null;
-  if (img && typeof img === 'object' && 'url' in img && typeof (img as { url: unknown }).url === 'string') {
-    const url = (img as { url: string }).url;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      primaryImageUrl = url;
-    } else {
-      const base = String(strapi.config.get('server.url') ?? '').replace(/\/+$/, '');
-      primaryImageUrl = `${base}${url.startsWith('/') ? '' : '/'}${url}`;
-    }
-  }
+  const primaryImageUrl = resolveMediaUrl(strapi, p.primaryImage);
+  const imageUrls: string[] = Array.isArray(p.images)
+    ? (p.images as unknown[]).map((img) => resolveMediaUrl(strapi, img)).filter((u): u is string => u !== null)
+    : [];
   return {
     id: p.id,
     documentId: p.documentId,
@@ -23,6 +25,7 @@ function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
     name: p.name,
     description: p.description,
     primaryImageUrl,
+    imageUrls,
     priceInMinor: String(p.priceInMinor ?? '0'),
     quantityOnHand: onHand,
     quantityReserved: reserved,
@@ -77,7 +80,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     if (!model) throw new AppError(404, 'MODEL_NOT_FOUND', 'Model not found');
     const products = await strapi.db.query('api::product.product').findMany({
       where: { partModel: model.id, isActive: true },
-      populate: ['partCategory', 'primaryImage'],
+      populate: ['partCategory', 'primaryImage', 'images'],
       orderBy: { name: 'asc' },
     });
     return products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
@@ -142,6 +145,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       populate: {
         partCategory: true,
         primaryImage: true,
+        images: true,
         partModel: {
           populate: { brand: true },
         },
@@ -169,7 +173,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, partModel: model.id, isActive: true },
-      populate: ['partCategory', 'primaryImage'],
+      populate: ['partCategory', 'primaryImage', 'images'],
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
     return serializeProduct(strapi, p as unknown as Record<string, unknown>);
@@ -179,7 +183,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     const normalized = String(sku).trim().toUpperCase();
     const p = await strapi.db.query('api::product.product').findOne({
       where: { sku: normalized, isActive: true },
-      populate: ['partModel', 'partCategory', 'primaryImage'],
+      populate: ['partModel', 'partCategory', 'primaryImage', 'images'],
     });
     if (!p) throw new AppError(404, 'PRODUCT_NOT_FOUND', 'Product not found');
     return serializeProduct(strapi, p as unknown as Record<string, unknown>);

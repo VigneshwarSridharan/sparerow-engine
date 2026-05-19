@@ -33,6 +33,7 @@ type BootstrapResponse = {
       uiBestSeller: boolean;
       uiNewArrival: boolean;
       primaryImageUrl?: string | null;
+      imageUrls: string[];
     }>;
     promoCodes: Array<{
       code: string;
@@ -123,6 +124,7 @@ const STOREFRONT_BOOTSTRAP_QUERY = `
         uiBestSeller
         uiNewArrival
         primaryImageUrl
+        imageUrls
       }
       promoCodes { code discountPercent minOrderSubtotalInMinor maxDiscountInMinor }
       defaultTaxRatePercent
@@ -206,7 +208,7 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
     inStock: product.availableToSell > 0,
     stockQty: product.availableToSell,
     image: resolveProductImageUrl(product.primaryImageUrl, product.categoryName || 'Other'),
-    images: [],
+    images: product.imageUrls ?? [],
     description: product.description || 'No description available.',
     warranty: product.uiWarranty,
     rating: product.uiRating,
