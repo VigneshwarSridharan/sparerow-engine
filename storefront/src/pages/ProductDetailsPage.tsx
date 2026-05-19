@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { ChevronRight, Heart, ShieldCheck, ShoppingCart, Star, Truck, X, ZoomIn } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -8,9 +9,154 @@ import { getPartImage } from '@/lib/partImages';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
 import { ProductCard } from '@/components/ProductCard';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 import { ProductVariant } from '@/types';
+import {
+  fetchProductReviews,
+  createProductReview,
+  type StorefrontReview,
+} from '@/lib/graphql/storefront';
+
+function StarRow({ rating, max = 5 }: { rating: number; max?: number }) {
+  return (
+    <span className="flex gap-0.5">
+      {Array.from({ length: max }).map((_, i) => (
+        <Star
+          key={i}
+          className={`h-4 w-4 ${i < rating ? 'fill-accent text-accent' : 'text-muted-foreground/30'}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ReviewCard({ review }: { review: StorefrontReview }) {
+  const date = new Date(review.createdAt).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  return (
+    <div className="border rounded-xl p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <StarRow rating={review.rating} />
+        {review.verifiedPurchase && (
+          <span className="text-xs text-success font-medium">Verified Purchase</span>
+        )}
+      </div>
+      <p className="font-semibold text-sm">{review.title}</p>
+      {review.body && <p className="text-sm text-muted-foreground">{review.body}</p>}
+      <p className="text-xs text-muted-foreground">{date}</p>
+    </div>
+  );
+}
+
+function WriteReviewForm({ sku, onSuccess }: { sku: string; onSuccess: () => void }) {
+  const { token } = useCustomerAuth();
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () => createProductReview({ sku, rating, title, body: body || undefined }, token),
+    onSuccess: () => {
+      setSubmitted(true);
+      onSuccess();
+    },
+  });
+
+  if (submitted) {
+    return (
+      <div className="rounded-xl border p-5 text-center text-sm text-muted-foreground">
+        Thank you! Your review has been submitted and will appear after approval.
+      </div>
+    );
+  }
+
+  const displayRating = hoveredRating || rating;
+
+  return (
+    <form
+      className="rounded-xl border p-5 space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!rating || !title.trim()) return;
+        mutation.mutate();
+      }}
+    >
+      <h3 className="font-semibold">Write a Review</h3>
+
+      <div className="space-y-1">
+        <p className="text-sm text-muted-foreground">Your rating</p>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setRating(star)}
+              onMouseEnter={() => setHoveredRating(star)}
+              onMouseLeave={() => setHoveredRating(0)}
+            >
+              <Star
+                className={`h-6 w-6 cursor-pointer transition-colors ${
+                  star <= displayRating ? 'fill-accent text-accent' : 'text-muted-foreground/30'
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm text-muted-foreground" htmlFor="review-title">
+          Title <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="review-title"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+          placeholder="Summarise your experience"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={200}
+          required
+        />
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-sm text-muted-foreground" htmlFor="review-body">
+          Details (optional)
+        </label>
+        <textarea
+          id="review-body"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary resize-none"
+          placeholder="Tell others what you think about this product"
+          rows={4}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          maxLength={2000}
+        />
+      </div>
+
+      {mutation.isError && (
+        <p className="text-sm text-destructive">
+          {(mutation.error as Error)?.message || 'Failed to submit review. Please try again.'}
+        </p>
+      )}
+
+      <Button
+        type="submit"
+        disabled={!rating || !title.trim() || mutation.isPending}
+        className="w-full sm:w-auto"
+      >
+        {mutation.isPending ? 'Submitting…' : 'Submit Review'}
+      </Button>
+    </form>
+  );
+}
 
 export default function ProductDetailsPage() {
   const navigate = useNavigate();
@@ -19,6 +165,7 @@ export default function ProductDetailsPage() {
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const queryClient = useQueryClient();
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -49,6 +196,18 @@ export default function ProductDetailsPage() {
     }
     return map;
   }, [product, variantAttributeKeys]);
+
+  const [reviewPage, setReviewPage] = useState(1);
+
+  const { data: reviewsData } = useQuery({
+    queryKey: ['product-reviews', product?.sku, reviewPage],
+    queryFn: () => fetchProductReviews(product!.sku, reviewPage),
+    enabled: !!product?.sku,
+  });
+
+  const handleReviewSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['product-reviews', product?.sku] });
+  };
 
   if (!product && !isLoading) {
     return (
@@ -146,7 +305,7 @@ export default function ProductDetailsPage() {
           <p className="text-muted-foreground mt-2">{brand?.name} • {model?.name} • {product.partType}</p>
 
           <div className="flex items-center gap-2 mt-4">
-            <Star className="h-4 w-4 fill-accent text-accent" />
+            <StarRow rating={Math.round(product.rating)} />
             <span className="font-medium">{product.rating}</span>
             <span className="text-muted-foreground">({product.reviewCount} reviews)</span>
           </div>
@@ -255,6 +414,58 @@ export default function ProductDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <section className="mt-14">
+        <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
+
+        {product.reviewCount === 0 && !reviewsData?.reviews.length && (
+          <p className="text-muted-foreground mb-6">No reviews yet. Be the first to review this product.</p>
+        )}
+
+        {reviewsData && reviewsData.reviews.length > 0 && (
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-4xl font-bold">{product.rating}</span>
+              <div>
+                <StarRow rating={Math.round(product.rating)} />
+                <p className="text-sm text-muted-foreground mt-1">{product.reviewCount} reviews</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+              {reviewsData.reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </div>
+
+            {reviewsData.pageCount > 1 && (
+              <div className="flex items-center gap-3 justify-center mb-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reviewPage <= 1}
+                  onClick={() => setReviewPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {reviewPage} of {reviewsData.pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reviewPage >= reviewsData.pageCount}
+                  onClick={() => setReviewPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        <WriteReviewForm sku={product.sku} onSuccess={handleReviewSuccess} />
+      </section>
 
       <section className="mt-14">
         <h2 className="text-2xl font-bold mb-6">You may also like</h2>

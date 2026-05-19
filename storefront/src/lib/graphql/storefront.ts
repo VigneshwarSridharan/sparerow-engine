@@ -720,6 +720,77 @@ export async function fetchStorefrontFaqs(): Promise<StorefrontFaq[]> {
   return data.storefrontFaqs;
 }
 
+export interface StorefrontReview {
+  id: string;
+  rating: number;
+  title: string;
+  body?: string | null;
+  verifiedPurchase: boolean;
+  createdAt: string;
+}
+
+export interface StorefrontProductReviewsPayload {
+  reviews: StorefrontReview[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+const PRODUCT_REVIEWS_QUERY = `
+  query ProductReviews($sku: String!, $page: Int) {
+    storefrontProductReviews(sku: $sku, page: $page) {
+      reviews {
+        id
+        rating
+        title
+        body
+        verifiedPurchase
+        createdAt
+      }
+      total
+      page
+      pageSize
+      pageCount
+    }
+  }
+`;
+
+const CREATE_REVIEW_MUTATION = `
+  mutation CreateReview($token: String, $input: StorefrontCreateReviewInput!) {
+    storefrontCreateReview(token: $token, input: $input) {
+      id
+      rating
+      title
+      body
+      verifiedPurchase
+      isApproved
+    }
+  }
+`;
+
+export async function fetchProductReviews(
+  sku: string,
+  page = 1
+): Promise<StorefrontProductReviewsPayload> {
+  const data = await graphqlRequest<
+    { storefrontProductReviews: StorefrontProductReviewsPayload },
+    { sku: string; page: number }
+  >(PRODUCT_REVIEWS_QUERY, { sku, page });
+  return data.storefrontProductReviews;
+}
+
+export async function createProductReview(
+  input: { sku: string; rating: number; title: string; body?: string },
+  token?: string | null
+): Promise<StorefrontReview> {
+  const data = await graphqlRequest<
+    { storefrontCreateReview: StorefrontReview },
+    { token?: string | null; input: typeof input }
+  >(CREATE_REVIEW_MUTATION, { token: token ?? null, input });
+  return data.storefrontCreateReview;
+}
+
 /** Display INR from minor units (paise) as returned by the API. */
 export function formatInrFromMinor(minorStr: string): string {
   const n = BigInt(minorStr || '0');

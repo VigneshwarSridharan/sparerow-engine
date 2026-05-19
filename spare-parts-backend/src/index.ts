@@ -298,6 +298,30 @@ export default {
           sortOrder: Int!
         }
 
+        type StorefrontReview {
+          id: ID!
+          rating: Int!
+          title: String!
+          body: String
+          verifiedPurchase: Boolean!
+          createdAt: String
+        }
+
+        type StorefrontProductReviewsPayload {
+          reviews: [StorefrontReview!]!
+          total: Int!
+          page: Int!
+          pageSize: Int!
+          pageCount: Int!
+        }
+
+        input StorefrontCreateReviewInput {
+          sku: String!
+          rating: Int!
+          title: String!
+          body: String
+        }
+
         type Query {
           storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
           storefrontProducts(filter: StorefrontCatalogFilterInput): [StorefrontProduct!]!
@@ -310,6 +334,7 @@ export default {
           storefrontOrder(id: ID!, token: String!): StorefrontOrder
           storefrontCmsPage(slug: String!): StorefrontCmsPage
           storefrontFaqs: [StorefrontFaq!]!
+          storefrontProductReviews(sku: String!, page: Int): StorefrontProductReviewsPayload!
         }
 
         type Mutation {
@@ -324,6 +349,7 @@ export default {
           storefrontVerifyRazorpayPayment(input: StorefrontVerifyRazorpayPaymentInput!): StorefrontOrder!
           storefrontRequestPasswordReset(email: String!): StorefrontMutationResult!
           storefrontResetPassword(token: String!, newPassword: String!): StorefrontMutationResult!
+          storefrontCreateReview(token: String, input: StorefrontCreateReviewInput!): StorefrontReview!
         }
       `,
       resolvers: {
@@ -377,10 +403,18 @@ export default {
                 productCount: categoryProductCount.get(String(category.id)) || 0,
               }));
 
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
+              };
+              const productIds = productsRaw.map((p) => Number(p.id)).filter(Boolean);
+              const reviewAggregates = await reviewService.getBulkAggregates(productIds);
+
               const products = productsRaw.map((product) => {
                 const sku = String(product.sku || '');
-                const rating = Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-                const reviews = Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+                const pid = Number(product.id);
+                const agg = reviewAggregates.get(pid);
+                const rating = agg && agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
+                const reviews = agg ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
                 const model = (product.partModel || {}) as Record<string, unknown>;
                 const brand = (model.brand || {}) as Record<string, unknown>;
                 const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -438,11 +472,18 @@ export default {
               const catalog = strapi.service('api::commerce.storefront-catalog') as {
                 listAllProducts: (filters?: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
               };
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
+              };
               const catalogData = await catalog.listAllProducts(args.filter);
+              const productIds = catalogData.map((p) => Number(p.id)).filter(Boolean);
+              const reviewAggregates = await reviewService.getBulkAggregates(productIds);
               return catalogData.map((product) => {
                 const sku = String(product.sku || '');
-                const rating = Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-                const reviews = Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+                const pid = Number(product.id);
+                const agg = reviewAggregates.get(pid);
+                const rating = agg && agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
+                const reviews = agg ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
                 const model = (product.partModel || {}) as Record<string, unknown>;
                 const brand = (model.brand || {}) as Record<string, unknown>;
                 const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -476,10 +517,15 @@ export default {
               const catalog = strapi.service('api::commerce.storefront-catalog') as {
                 getProductBySku: (sku: string) => Promise<Record<string, unknown>>;
               };
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                getProductAggregates: (productId: number) => Promise<{ averageRating: number; reviewCount: number }>;
+              };
               const product = await catalog.getProductBySku(args.sku);
               const sku = String(product.sku || '');
-              const rating = Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-              const reviews = Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+              const pid = Number(product.id);
+              const agg = await reviewService.getProductAggregates(pid);
+              const rating = agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
+              const reviews = agg.reviewCount > 0 ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
               const model = (product.partModel || {}) as Record<string, unknown>;
               const brand = (model.brand || {}) as Record<string, unknown>;
               const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -655,6 +701,16 @@ export default {
               throwGraphQLError(error);
             }
           },
+          storefrontProductReviews: async (_: unknown, args: { sku: string; page?: number }) => {
+            try {
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                getProductReviews: (sku: string, page?: number) => Promise<Record<string, unknown>>;
+              };
+              return reviewService.getProductReviews(args.sku, args.page ?? 1);
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
         },
         Mutation: {
           storefrontRegister: async (_: unknown, args: { input: Record<string, unknown> }) => {
@@ -694,6 +750,34 @@ export default {
                 resetPassword: (token: string, newPassword: string) => Promise<{ ok: boolean }>;
               };
               return await auth.resetPassword(args.token, args.newPassword);
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontCreateReview: async (
+            _: unknown,
+            args: { token?: string; input: { sku: string; rating: number; title: string; body?: string } },
+            context: { koaContext: { request: { header: { authorization?: string } } } }
+          ) => {
+            try {
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                createReview: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+              };
+              let customerId: number | undefined;
+              const raw =
+                String(args.token || '').trim() ||
+                context.koaContext.request.header.authorization?.replace(/^Bearer\s+/i, '').trim();
+              if (raw) {
+                try {
+                  const auth = strapi.service('api::commerce.storefront-auth') as {
+                    verifyCustomerToken: (token: string) => { sub: number };
+                  };
+                  customerId = auth.verifyCustomerToken(raw).sub;
+                } catch {
+                  customerId = undefined;
+                }
+              }
+              return reviewService.createReview({ ...args.input, customerId });
             } catch (error) {
               throwGraphQLError(error);
             }
@@ -889,6 +973,8 @@ export default {
         'Mutation.storefrontResetPassword': { auth: false },
         'Query.storefrontCmsPage': { auth: false },
         'Query.storefrontFaqs': { auth: false },
+        'Query.storefrontProductReviews': { auth: false },
+        'Mutation.storefrontCreateReview': { auth: false },
       },
     }));
   },
