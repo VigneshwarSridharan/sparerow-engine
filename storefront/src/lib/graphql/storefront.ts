@@ -571,6 +571,36 @@ export async function registerStorefront(input: {
   return payload;
 }
 
+const REQUEST_PASSWORD_RESET_MUTATION = `
+  mutation RequestPasswordReset($email: String!) {
+    storefrontRequestPasswordReset(email: $email) {
+      ok
+    }
+  }
+`;
+
+const RESET_PASSWORD_MUTATION = `
+  mutation ResetPassword($token: String!, $newPassword: String!) {
+    storefrontResetPassword(token: $token, newPassword: $newPassword) {
+      ok
+    }
+  }
+`;
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await graphqlRequest<{ storefrontRequestPasswordReset: { ok: boolean } }, { email: string }>(
+    REQUEST_PASSWORD_RESET_MUTATION,
+    { email }
+  );
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await graphqlRequest<
+    { storefrontResetPassword: { ok: boolean } },
+    { token: string; newPassword: string }
+  >(RESET_PASSWORD_MUTATION, { token, newPassword });
+}
+
 export async function fetchStorefrontOrders(token: string): Promise<StorefrontOrderSummary[]> {
   const data = await graphqlRequest<OrdersResponse, { token: string }>(ORDERS_QUERY, { token });
   return data.storefrontOrders;

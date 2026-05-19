@@ -307,6 +307,8 @@ export default {
           storefrontCreateOrder(token: String, input: StorefrontCreateOrderInput!): StorefrontCreateOrderPayload!
           storefrontPrepareRazorpayPayment(orderId: ID!, paymentContinuationSecret: String!): StorefrontRazorpayPreparedOrder!
           storefrontVerifyRazorpayPayment(input: StorefrontVerifyRazorpayPaymentInput!): StorefrontOrder!
+          storefrontRequestPasswordReset(email: String!): StorefrontMutationResult!
+          storefrontResetPassword(token: String!, newPassword: String!): StorefrontMutationResult!
         }
       `,
       resolvers: {
@@ -661,6 +663,26 @@ export default {
             }
           },
           storefrontLogout: async () => ({ ok: true }),
+          storefrontRequestPasswordReset: async (_: unknown, args: { email: string }) => {
+            try {
+              const auth = strapi.service('api::commerce.storefront-auth') as {
+                requestPasswordReset: (email: string) => Promise<{ ok: boolean }>;
+              };
+              return await auth.requestPasswordReset(args.email);
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontResetPassword: async (_: unknown, args: { token: string; newPassword: string }) => {
+            try {
+              const auth = strapi.service('api::commerce.storefront-auth') as {
+                resetPassword: (token: string, newPassword: string) => Promise<{ ok: boolean }>;
+              };
+              return await auth.resetPassword(args.token, args.newPassword);
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
           storefrontCreateAddress: async (
             _: unknown,
             args: { token: string; input: Record<string, unknown> },
@@ -845,6 +867,8 @@ export default {
         'Mutation.storefrontCreateOrder': { auth: false },
         'Mutation.storefrontPrepareRazorpayPayment': { auth: false },
         'Mutation.storefrontVerifyRazorpayPayment': { auth: false },
+        'Mutation.storefrontRequestPasswordReset': { auth: false },
+        'Mutation.storefrontResetPassword': { auth: false },
         'Query.storefrontCmsPage': { auth: false },
         'Query.storefrontFaqs': { auth: false },
       },
