@@ -764,7 +764,6 @@ const CREATE_REVIEW_MUTATION = `
       title
       body
       verifiedPurchase
-      isApproved
     }
   }
 `;
