@@ -684,6 +684,7 @@ export interface ApiOrderLineItemOrderLineItem
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    variantSkuSnapshot: Schema.Attribute.String;
   };
 }
 
@@ -830,7 +831,55 @@ export interface ApiPartModelPartModel extends Struct.CollectionTypeSchema {
   };
 }
 
-export interface ApiProductVariantProductVariant extends Struct.CollectionTypeSchema {
+export interface ApiProductReviewProductReview
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'product_reviews';
+  info: {
+    displayName: 'Product Review';
+    pluralName: 'product-reviews';
+    singularName: 'product-review';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    body: Schema.Attribute.Text;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    customerAccount: Schema.Attribute.Relation<
+      'manyToOne',
+      'api::customer-account.customer-account'
+    >;
+    isApproved: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::product-review.product-review'
+    > &
+      Schema.Attribute.Private;
+    product: Schema.Attribute.Relation<'manyToOne', 'api::product.product'>;
+    publishedAt: Schema.Attribute.DateTime;
+    rating: Schema.Attribute.Integer &
+      Schema.Attribute.Required &
+      Schema.Attribute.SetMinMax<
+        {
+          max: 5;
+          min: 1;
+        },
+        number
+      >;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    verifiedPurchase: Schema.Attribute.Boolean &
+      Schema.Attribute.DefaultTo<false>;
+  };
+}
+
+export interface ApiProductVariantProductVariant
+  extends Struct.CollectionTypeSchema {
   collectionName: 'product_variants';
   info: {
     displayName: 'Product Variant';
@@ -918,124 +967,10 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
-  };
-}
-
-export interface ApiProductReviewProductReview extends Struct.CollectionTypeSchema {
-  collectionName: 'product_reviews';
-  info: {
-    displayName: 'Product Review';
-    pluralName: 'product-reviews';
-    singularName: 'product-review';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    body: Schema.Attribute.Text;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    customerAccount: Schema.Attribute.Relation<
-      'manyToOne',
-      'api::customer-account.customer-account'
-    >;
-    isApproved: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::product-review.product-review'
-    > &
-      Schema.Attribute.Private;
-    product: Schema.Attribute.Relation<'manyToOne', 'api::product.product'>;
-    rating: Schema.Attribute.Integer &
-      Schema.Attribute.Required &
-      Schema.Attribute.SetMinMax<{ min: 1; max: 5 }, number>;
-    title: Schema.Attribute.String & Schema.Attribute.Required;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    verifiedPurchase: Schema.Attribute.Boolean &
-      Schema.Attribute.DefaultTo<false>;
-  };
-}
-
-export interface ApiProductVariantProductVariant extends Struct.CollectionTypeSchema {
-  collectionName: 'product_variants';
-  info: {
-    displayName: 'Product Variant';
-    pluralName: 'product-variants';
-    singularName: 'product-variant';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    attributes: Schema.Attribute.JSON;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    image: Schema.Attribute.Media<'images'>;
-    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
+    variants: Schema.Attribute.Relation<
       'oneToMany',
       'api::product-variant.product-variant'
-    > &
-      Schema.Attribute.Private;
-    priceInMinor: Schema.Attribute.BigInteger;
-    product: Schema.Attribute.Relation<'manyToOne', 'api::product.product'>;
-    quantityOnHand: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
-    quantityReserved: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
-    sku: Schema.Attribute.String &
-      Schema.Attribute.Required &
-      Schema.Attribute.Unique;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-  };
-}
-
-export interface ApiReturnRequestReturnRequest extends Struct.CollectionTypeSchema {
-  collectionName: 'return_requests';
-  info: {
-    displayName: 'Return Request';
-    pluralName: 'return-requests';
-    singularName: 'return-request';
-  };
-  options: {
-    draftAndPublish: false;
-  };
-  attributes: {
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    customerAccount: Schema.Attribute.Relation<
-      'manyToOne',
-      'api::customer-account.customer-account'
     >;
-    lineItems: Schema.Attribute.JSON & Schema.Attribute.Required;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::return-request.return-request'
-    > &
-      Schema.Attribute.Private;
-    notes: Schema.Attribute.Text;
-    order: Schema.Attribute.Relation<'manyToOne', 'api::order.order'>;
-    reason: Schema.Attribute.Enumeration<
-      ['DEFECTIVE', 'WRONG_ITEM', 'NOT_AS_DESCRIBED', 'CHANGED_MIND', 'OTHER']
-    > &
-      Schema.Attribute.Required;
-    refundAmountInMinor: Schema.Attribute.BigInteger;
-    status: Schema.Attribute.Enumeration<
-      ['PENDING', 'APPROVED', 'REJECTED', 'REFUNDED']
-    > &
-      Schema.Attribute.Required &
-      Schema.Attribute.DefaultTo<'PENDING'>;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
   };
 }
 
