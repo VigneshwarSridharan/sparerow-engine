@@ -1,6 +1,10 @@
 import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
-import { assertShipmentTransition, type ShipmentStatus } from '../../../lib/transitions';
+import {
+  assertOrderTransition,
+  assertShipmentTransition,
+  type ShipmentStatus,
+} from '../../../lib/transitions';
 import { getPrimaryCarrier } from '../../../shipping/factory';
 import { sendEmail } from '../../../lib/mailer';
 import { orderShippedHtml } from '../../../lib/email-templates/order-shipped';
@@ -64,6 +68,14 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         carrierMetadata: result.metadata || {},
       },
     });
+
+    if ((order as Record<string, unknown>).status === 'PAID') {
+      assertOrderTransition('PAID', 'FULFILLMENT_PENDING');
+      await strapi.db.query('api::order.order').update({
+        where: { id: orderId },
+        data: { status: 'FULFILLMENT_PENDING' },
+      });
+    }
   },
 
   async updateShipmentStatus(shipmentId: number, next: ShipmentStatus) {
@@ -79,6 +91,28 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     });
 
     const order = ship.order as Record<string, unknown> | null;
+
+    if (next === 'DELIVERED' && order) {
+      const orderId = order.id as number;
+      const allShipments = await strapi.db
+        .query('api::shipment.shipment')
+        .findMany({ where: { order: orderId } });
+      const allDelivered = allShipments.every(
+        (s) => (s as Record<string, unknown>).status === 'DELIVERED'
+      );
+      if (allDelivered) {
+        const freshOrder = await strapi.db
+          .query('api::order.order')
+          .findOne({ where: { id: orderId } });
+        if (freshOrder && (freshOrder as Record<string, unknown>).status === 'FULFILLMENT_PENDING') {
+          assertOrderTransition('FULFILLMENT_PENDING', 'FULFILLED');
+          await strapi.db.query('api::order.order').update({
+            where: { id: orderId },
+            data: { status: 'FULFILLED' },
+          });
+        }
+      }
+    }
     if (order?.contactEmail) {
       try {
         const orderId = order.id as number;
