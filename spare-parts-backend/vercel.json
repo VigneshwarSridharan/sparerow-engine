@@ -1,0 +1,10 @@
+{
+  "buildCommand": "yarn build",
+  "framework": null,
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/strapi" }],
+  "functions": {
+    "api/strapi.js": {
+      "maxDuration": 60
+    }
+  }
+}
