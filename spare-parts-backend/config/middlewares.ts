@@ -5,6 +5,7 @@ const config: Core.Config.Middlewares = [
   'strapi::errors',
   'strapi::security',
   'strapi::cors',
+  'global::rate-limit',
   'strapi::poweredBy',
   'strapi::query',
   {
