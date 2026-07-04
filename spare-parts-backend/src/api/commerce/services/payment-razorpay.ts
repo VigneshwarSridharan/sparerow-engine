@@ -16,8 +16,9 @@ async function loadOrderContinuation(
   if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Order not found');
   const stored = order.checkoutContinuationSecret as string | null | undefined;
   // Webhook may have already processed and cleared the secret before the browser verify call arrives.
-  // If the order is already PAID the downstream idempotent path will validate the payment IDs.
-  if (!stored && order.status === 'PAID') return order;
+  // If the order is already past PENDING_PAYMENT the downstream idempotent path will validate the payment IDs.
+  const PAYMENT_COMPLETED_STATUSES = ['PAID', 'FULFILLMENT_PENDING', 'FULFILLED'];
+  if (!stored && PAYMENT_COMPLETED_STATUSES.includes(order.status as string)) return order;
   if (!stored || !continuationSecret || !timingSafeStringEqual(stored, continuationSecret)) {
     throw new AppError(403, 'CHECKOUT_FORBIDDEN', 'Invalid checkout continuation');
   }
@@ -119,7 +120,8 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       throw new AppError(400, 'RAZORPAY_ORDER_MISMATCH', 'Razorpay order mismatch');
     }
 
-    if (order.status === 'PAID') {
+    const PAYMENT_COMPLETED_STATUSES = ['PAID', 'FULFILLMENT_PENDING', 'FULFILLED'];
+    if (PAYMENT_COMPLETED_STATUSES.includes(order.status as string)) {
       if (
         order.providerPaymentId &&
         String(order.providerPaymentId) !== String(input.razorpayPaymentId)
