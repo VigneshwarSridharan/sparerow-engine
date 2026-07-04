@@ -9,7 +9,7 @@
 # Profiles:
 #   dev            — hot-reload Strapi + Vite (default if you copy docker-compose.env.example → .env)
 #   with-postgres  — Postgres for dev; set DATABASE_CLIENT=postgres and DATABASE_URL in spare-parts-backend/.env
-#   production     — Postgres + production Strapi + nginx storefront (no dev containers)
+#   production     — Postgres + Strapi + Storefront + Nginx reverse proxy (no dev containers)
 #
 # Examples:
 #   docker compose --profile dev --profile with-postgres up --build
@@ -114,8 +114,6 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: unless-stopped
-    ports:
-      - "${STRAPI_PORT:-1337}:1337"
     env_file:
       - ./spare-parts-backend/.env
     environment:
@@ -134,12 +132,24 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-http://localhost:1337/graphql}
+        VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-/graphql}
     restart: unless-stopped
-    ports:
-      - "${STOREFRONT_PORT:-4000}:80"
     depends_on:
       - strapi_prod
+
+  reverse_proxy:
+    profiles: ["production"]
+    container_name: spare-parts-reverse-proxy
+    build:
+      context: ./reverse-proxy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - strapi_prod
+      - storefront_prod
 
 volumes:
   strapi_node_modules:
