@@ -116,26 +116,66 @@ curl -X POST http://localhost/api/auth/register \
 # Should load Strapi admin panel
 ```
 
-## SSL/HTTPS Setup
+## SSL/HTTPS Setup (Automatic with Let's Encrypt)
 
-After verifying HTTP works, set up SSL:
+SSL is automatically configured when you deploy with a valid domain:
 
-### Option A: Let's Encrypt with Certbot (Recommended)
+### Configuration
+
+The SSL setup is **built into the production deployment**:
+
+1. **Environment variables** (in `.env`):
+   ```env
+   LETSENCRYPT_DOMAIN=yourdomain.com
+   LETSENCRYPT_EMAIL=admin@yourdomain.com
+   ```
+
+2. **Certbot container** automatically:
+   - Generates SSL certificates on first run
+   - Renews certificates every 60 days (automatic)
+   - Reloads nginx without downtime
+   - Sends email notifications
+
+3. **Nginx automatically**:
+   - Listens on port 443 (HTTPS)
+   - Redirects HTTP (port 80) to HTTPS
+   - Handles ACME challenges for renewal
+
+### Quick Start
 
 ```bash
-# Install Certbot
-apt update && apt install certbot python3-certbot-nginx -y
+# 1. Update .env with your domain
+vim .env
+# Set: LETSENCRYPT_DOMAIN=yourdomain.com
+#      LETSENCRYPT_EMAIL=your-email@example.com
 
-# Get certificate
-certbot certonly --standalone -d yourdomain.com
+# 2. Deploy (SSL will be set up automatically)
+docker compose --profile production up --build -d
 
-# Update reverse proxy nginx config to use SSL certificates
-# Edit reverse-proxy/nginx/default.conf and add SSL configuration
+# 3. Watch certificate generation
+docker compose logs certbot
+
+# 4. Verify HTTPS works
+curl -I https://yourdomain.com/
 ```
 
-### Option B: Using Docker with Let's Encrypt
+### Monitoring Renewal
 
-Use `certbot-nginx` container or similar for automated SSL renewal.
+The Certbot container runs continuously and:
+- Checks for renewal every 24 hours
+- Renews 30 days before expiration
+- Reloads nginx on successful renewal
+- Sends email to LETSENCRYPT_EMAIL
+
+```bash
+# View renewal status
+docker compose logs certbot
+
+# Manual renewal (for testing)
+docker compose exec certbot certbot renew --force-renewal
+```
+
+For detailed SSL documentation, see [SSL_SETUP.md](SSL_SETUP.md).
 
 ## Monitoring & Maintenance
 

@@ -137,6 +137,23 @@ services:
     depends_on:
       - strapi_prod
 
+  certbot:
+    profiles: ["production"]
+    container_name: spare-parts-certbot
+    build:
+      context: ./reverse-proxy
+      dockerfile: Dockerfile.certbot
+    restart: unless-stopped
+    environment:
+      LETSENCRYPT_DOMAIN: ${LETSENCRYPT_DOMAIN:-localhost}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@example.com}
+    volumes:
+      - letsencrypt_data:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    depends_on:
+      - reverse_proxy
+    entrypoint: /entrypoint.sh
+
   reverse_proxy:
     profiles: ["production"]
     container_name: spare-parts-reverse-proxy
@@ -147,6 +164,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      LETSENCRYPT_DOMAIN: ${LETSENCRYPT_DOMAIN:-localhost}
+    volumes:
+      - letsencrypt_data:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
     depends_on:
       - strapi_prod
       - storefront_prod
@@ -160,3 +182,7 @@ volumes:
     name: spare_parts_postgres_dev_data
   postgres_data:
     name: spare_parts_postgres_data
+  letsencrypt_data:
+    name: spare_parts_letsencrypt_data
+  certbot_webroot:
+    name: spare_parts_certbot_webroot
