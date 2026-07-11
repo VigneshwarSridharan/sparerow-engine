@@ -1,8 +1,10 @@
 #!/bin/sh
 set -e
 
-# Get domain from environment or use localhost
-DOMAIN=${LETSENCRYPT_DOMAIN:-"localhost"}
+# LETSENCRYPT_DOMAIN may be a comma-separated list (e.g. "example.com,www.example.com").
+# The certificate is named after the first entry — see certbot-entrypoint.sh.
+DOMAIN_LIST=${LETSENCRYPT_DOMAIN:-"localhost"}
+DOMAIN=$(echo "$DOMAIN_LIST" | cut -d',' -f1 | xargs)
 
 echo "================================================"
 echo "Nginx Reverse Proxy"
