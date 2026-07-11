@@ -1,30 +1,41 @@
 #!/bin/bash
 set -e
 
-DOMAIN=${LETSENCRYPT_DOMAIN:-"localhost"}
+# LETSENCRYPT_DOMAIN accepts a comma-separated list (e.g. "example.com,www.example.com").
+# The first entry names the certificate (matches nginx's ssl_certificate path).
+DOMAIN_LIST=${LETSENCRYPT_DOMAIN:-"localhost"}
 EMAIL=${LETSENCRYPT_EMAIL:-"admin@example.com"}
 CERTBOT_MODE=${CERTBOT_MODE:-"standalone"}
 
+DOMAIN=$(echo "$DOMAIN_LIST" | cut -d',' -f1 | xargs)
+
+DOMAIN_ARGS=""
+IFS=',' read -ra DOMAIN_ARR <<< "$DOMAIN_LIST"
+for d in "${DOMAIN_ARR[@]}"; do
+  DOMAIN_ARGS="$DOMAIN_ARGS --domain $(echo "$d" | xargs)"
+done
+
 echo "=========================================="
 echo "Certbot SSL Certificate Manager"
-echo "Domain: $DOMAIN"
+echo "Domains: $DOMAIN_LIST"
 echo "Email: $EMAIL"
 echo "Mode: $CERTBOT_MODE"
 echo "=========================================="
 
-# Check if certificate already exists
-if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-  echo "✓ Certificate found for $DOMAIN, skipping certificate generation"
-  echo "Starting automatic renewal check..."
-
-  # Run renewal in daemon mode (checks certificates every 12 hours)
-  certbot renew \
+issue_certificate() {
+  certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
-    --quiet \
-    --deploy-hook="/bin/sh -c 'nginx -s reload 2>/dev/null || true'"
+    $DOMAIN_ARGS \
+    --expand \
+    --email "$EMAIL" \
+    --agree-tos \
+    --no-eff-email \
+    --non-interactive \
+    --quiet
+}
 
-  # Keep the container running - watch for certificate renewal
+run_renewal_loop() {
   echo "Certbot renewal service running..."
   while true; do
     sleep 86400  # Check every 24 hours
@@ -34,35 +45,45 @@ if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
       --quiet \
       --deploy-hook="/bin/sh -c 'nginx -s reload 2>/dev/null || true'" || true
   done
-else
-  echo "✗ No existing certificate found, generating new certificate..."
+}
 
-  # Generate new certificate using webroot plugin
-  certbot certonly \
+# Check whether the existing certificate already covers every requested domain
+cert_covers_all_domains() {
+  cert_file="/etc/letsencrypt/live/$DOMAIN/cert.pem"
+  [ -f "$cert_file" ] || return 1
+  sans=$(openssl x509 -in "$cert_file" -noout -ext subjectAltName 2>/dev/null || true)
+  for d in "${DOMAIN_ARR[@]}"; do
+    d_trimmed=$(echo "$d" | xargs)
+    echo "$sans" | grep -q "DNS:$d_trimmed\b" || return 1
+  done
+  return 0
+}
+
+if [ -d "/etc/letsencrypt/live/$DOMAIN" ] && cert_covers_all_domains; then
+  echo "✓ Certificate found for $DOMAIN and covers all requested domains, skipping generation"
+  echo "Starting automatic renewal check..."
+  certbot renew \
     --webroot \
     --webroot-path=/var/www/certbot \
-    --domain "$DOMAIN" \
-    --email "$EMAIL" \
-    --agree-tos \
-    --no-eff-email \
-    --non-interactive \
-    --quiet
+    --quiet \
+    --deploy-hook="/bin/sh -c 'nginx -s reload 2>/dev/null || true'"
+  run_renewal_loop
+else
+  if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
+    echo "✗ Existing certificate does not cover all requested domains, expanding..."
+  else
+    echo "✗ No existing certificate found, generating new certificate..."
+  fi
+
+  issue_certificate
 
   if [ -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    echo "✓ Certificate successfully generated for $DOMAIN"
+    echo "✓ Certificate successfully issued for $DOMAIN_LIST"
   else
     echo "✗ Certificate generation failed!"
     exit 1
   fi
 
-  # Start renewal daemon
   echo "Starting automatic renewal service..."
-  while true; do
-    sleep 86400  # Check every 24 hours
-    certbot renew \
-      --webroot \
-      --webroot-path=/var/www/certbot \
-      --quiet \
-      --deploy-hook="/bin/sh -c 'nginx -s reload 2>/dev/null || true'" || true
-  done
+  run_renewal_loop
 fi

@@ -28,6 +28,15 @@ if ! nginx -t 2>&1 | grep -q "successful"; then
 fi
 
 echo "✓ Nginx configuration validated successfully"
+
+# Certificate renewal happens in the sibling certbot container, which has no
+# way to reload this container's nginx process directly. Periodically reload
+# here instead so renewed certificates (written to the shared volume) actually
+# get picked up. A reload is cheap and doesn't drop existing connections.
+if [ "$DOMAIN" != "localhost" ]; then
+  ( while true; do sleep 43200; nginx -s reload 2>/dev/null || true; done ) &
+fi
+
 echo "Starting nginx..."
 
 # Execute the original CMD (nginx)
