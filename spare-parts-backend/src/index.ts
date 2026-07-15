@@ -1,6 +1,7 @@
 import type { Core } from '@strapi/strapi';
 import { GraphQLError } from 'graphql';
 import { AppError } from './lib/errors';
+import { computeProductUiFlags } from './lib/product-ui-flags';
 
 function throwGraphQLError(error: unknown): never {
   if (error instanceof AppError) {
@@ -20,16 +21,6 @@ function normalizeModelName(name: string): string {
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function hashToRange(input: string, min: number, max: number): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash << 5) - hash + input.charCodeAt(i);
-    hash |= 0;
-  }
-  const normalized = Math.abs(hash % 1000) / 1000;
-  return min + (max - min) * normalized;
 }
 
 export default {
@@ -152,6 +143,17 @@ export default {
           promoCodes: [StorefrontPromoCode!]!
           defaultTaxRatePercent: Int!
           originStateCode: String!
+        }
+
+        type StorefrontHomeFilters {
+          brands: [StorefrontBrand!]!
+          categories: [StorefrontCategory!]!
+        }
+
+        type StorefrontProductSections {
+          featured: [StorefrontProduct!]!
+          bestSellers: [StorefrontProduct!]!
+          newArrivals: [StorefrontProduct!]!
         }
 
         type StorefrontAddress {
@@ -353,6 +355,9 @@ export default {
 
         type Query {
           storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
+          storefrontHomeFilters: StorefrontHomeFilters!
+          storefrontModelsByBrand(brandSlug: String!): [StorefrontModel!]!
+          storefrontProductSections(limit: Int): StorefrontProductSections!
           storefrontProducts(filter: StorefrontCatalogFilterInput): [StorefrontProduct!]!
           storefrontProductBySku(sku: String!): StorefrontProduct
           storefrontPromoCode(code: String!): StorefrontPromoCode
@@ -444,8 +449,7 @@ export default {
                 const sku = String(product.sku || '');
                 const pid = Number(product.id);
                 const agg = reviewAggregates.get(pid);
-                const rating = agg && agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-                const reviews = agg ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+                const flags = computeProductUiFlags(sku, Number(product.availableToSell || 0), agg);
                 const model = (product.partModel || {}) as Record<string, unknown>;
                 const brand = (model.brand || {}) as Record<string, unknown>;
                 const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -462,11 +466,11 @@ export default {
                   uiPrice: Math.round(priceInMinor / 100),
                   uiDiscountPrice: Math.round(priceInMinor / 100),
                   uiDiscountPercent: 0,
-                  uiRating: rating,
-                  uiReviewCount: reviews,
-                  uiFeatured: Number(product.availableToSell || 0) > 0 && reviews > 150,
-                  uiBestSeller: reviews > 250,
-                  uiNewArrival: reviews < 80,
+                  uiRating: flags.rating,
+                  uiReviewCount: flags.reviewCount,
+                  uiFeatured: flags.featured,
+                  uiBestSeller: flags.bestSeller,
+                  uiNewArrival: flags.newArrival,
                   uiWarranty: '90 Days',
                 };
               });
@@ -498,23 +502,60 @@ export default {
               throwGraphQLError(error);
             }
           },
-          storefrontProducts: async (_: unknown, args: { filter?: Record<string, unknown> }) => {
+          storefrontHomeFilters: async () => {
             try {
               const catalog = strapi.service('api::commerce.storefront-catalog') as {
-                listAllProducts: (filters?: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+                listBrandsWithCounts: () => Promise<Array<Record<string, unknown>>>;
+                listCategoriesWithCounts: () => Promise<Array<Record<string, unknown>>>;
+              };
+              const [brands, categories] = await Promise.all([
+                catalog.listBrandsWithCounts(),
+                catalog.listCategoriesWithCounts(),
+              ]);
+              return { brands, categories };
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontModelsByBrand: async (_: unknown, args: { brandSlug: string }) => {
+            try {
+              const catalog = strapi.service('api::commerce.storefront-catalog') as {
+                listModelsWithCounts: (brandSlug: string) => Promise<Array<Record<string, unknown>>>;
+              };
+              const models = await catalog.listModelsWithCounts(args.brandSlug);
+              return models.map((model) => ({
+                ...model,
+                modelNumber: normalizeModelName(String(model.name || '')),
+              }));
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontProductSections: async (_: unknown, args: { limit?: number }) => {
+            try {
+              const catalog = strapi.service('api::commerce.storefront-catalog') as {
+                listFeaturedProducts: (limit: number) => Promise<Array<Record<string, unknown>>>;
+                listBestSellerProducts: (limit: number) => Promise<Array<Record<string, unknown>>>;
+                listNewArrivalProducts: (limit: number) => Promise<Array<Record<string, unknown>>>;
               };
               const reviewService = strapi.service('api::commerce.storefront-reviews') as {
                 getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
               };
-              const catalogData = await catalog.listAllProducts(args.filter);
-              const productIds = catalogData.map((p) => Number(p.id)).filter(Boolean);
+              const limit = Math.min(Math.max(Number(args.limit) || 8, 1), 24);
+              const [featuredRaw, bestSellersRaw, newArrivalsRaw] = await Promise.all([
+                catalog.listFeaturedProducts(limit),
+                catalog.listBestSellerProducts(limit),
+                catalog.listNewArrivalProducts(limit),
+              ]);
+              const productIds = [...featuredRaw, ...bestSellersRaw, ...newArrivalsRaw]
+                .map((p) => Number(p.id))
+                .filter(Boolean);
               const reviewAggregates = await reviewService.getBulkAggregates(productIds);
-              return catalogData.map((product) => {
+              const serialize = (product: Record<string, unknown>) => {
                 const sku = String(product.sku || '');
                 const pid = Number(product.id);
                 const agg = reviewAggregates.get(pid);
-                const rating = agg && agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-                const reviews = agg ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+                const flags = computeProductUiFlags(sku, Number(product.availableToSell || 0), agg);
                 const model = (product.partModel || {}) as Record<string, unknown>;
                 const brand = (model.brand || {}) as Record<string, unknown>;
                 const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -531,11 +572,60 @@ export default {
                   uiPrice: Math.round(priceInMinor / 100),
                   uiDiscountPrice: Math.round(priceInMinor / 100),
                   uiDiscountPercent: 0,
-                  uiRating: rating,
-                  uiReviewCount: reviews,
-                  uiFeatured: Number(product.availableToSell || 0) > 0 && reviews > 150,
-                  uiBestSeller: reviews > 250,
-                  uiNewArrival: reviews < 80,
+                  uiRating: flags.rating,
+                  uiReviewCount: flags.reviewCount,
+                  uiFeatured: flags.featured,
+                  uiBestSeller: flags.bestSeller,
+                  uiNewArrival: flags.newArrival,
+                  uiWarranty: '90 Days',
+                };
+              };
+              return {
+                featured: featuredRaw.map(serialize),
+                bestSellers: bestSellersRaw.map(serialize),
+                newArrivals: newArrivalsRaw.map(serialize),
+              };
+            } catch (error) {
+              throwGraphQLError(error);
+            }
+          },
+          storefrontProducts: async (_: unknown, args: { filter?: Record<string, unknown> }) => {
+            try {
+              const catalog = strapi.service('api::commerce.storefront-catalog') as {
+                listAllProducts: (filters?: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+              };
+              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+                getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
+              };
+              const catalogData = await catalog.listAllProducts(args.filter);
+              const productIds = catalogData.map((p) => Number(p.id)).filter(Boolean);
+              const reviewAggregates = await reviewService.getBulkAggregates(productIds);
+              return catalogData.map((product) => {
+                const sku = String(product.sku || '');
+                const pid = Number(product.id);
+                const agg = reviewAggregates.get(pid);
+                const flags = computeProductUiFlags(sku, Number(product.availableToSell || 0), agg);
+                const model = (product.partModel || {}) as Record<string, unknown>;
+                const brand = (model.brand || {}) as Record<string, unknown>;
+                const category = (product.partCategory || {}) as Record<string, unknown>;
+                const priceInMinor = Number(product.priceInMinor || 0);
+                return {
+                  ...product,
+                  brandId: brand.id,
+                  brandSlug: brand.slug,
+                  modelId: model.id,
+                  modelSlug: model.slug,
+                  categoryId: category.id || null,
+                  categorySlug: category.slug || null,
+                  categoryName: category.name || null,
+                  uiPrice: Math.round(priceInMinor / 100),
+                  uiDiscountPrice: Math.round(priceInMinor / 100),
+                  uiDiscountPercent: 0,
+                  uiRating: flags.rating,
+                  uiReviewCount: flags.reviewCount,
+                  uiFeatured: flags.featured,
+                  uiBestSeller: flags.bestSeller,
+                  uiNewArrival: flags.newArrival,
                   uiWarranty: '90 Days',
                 };
               });
@@ -555,8 +645,11 @@ export default {
               const sku = String(product.sku || '');
               const pid = Number(product.id);
               const agg = await reviewService.getProductAggregates(pid);
-              const rating = agg.reviewCount > 0 ? agg.averageRating : Number(hashToRange(sku, 3.8, 4.9).toFixed(1));
-              const reviews = agg.reviewCount > 0 ? agg.reviewCount : Math.round(hashToRange(`${sku}-reviews`, 25, 420));
+              const flags = computeProductUiFlags(
+                sku,
+                Number(product.availableToSell || 0),
+                agg.reviewCount > 0 ? agg : undefined
+              );
               const model = (product.partModel || {}) as Record<string, unknown>;
               const brand = (model.brand || {}) as Record<string, unknown>;
               const category = (product.partCategory || {}) as Record<string, unknown>;
@@ -573,11 +666,11 @@ export default {
                 uiPrice: Math.round(priceInMinor / 100),
                 uiDiscountPrice: Math.round(priceInMinor / 100),
                 uiDiscountPercent: 0,
-                uiRating: rating,
-                uiReviewCount: reviews,
-                uiFeatured: Number(product.availableToSell || 0) > 0 && reviews > 150,
-                uiBestSeller: reviews > 250,
-                uiNewArrival: reviews < 80,
+                uiRating: flags.rating,
+                uiReviewCount: flags.reviewCount,
+                uiFeatured: flags.featured,
+                uiBestSeller: flags.bestSeller,
+                uiNewArrival: flags.newArrival,
                 uiWarranty: '90 Days',
               };
             } catch (error) {
@@ -1034,6 +1127,9 @@ export default {
       },
       resolversConfig: {
         'Query.storefrontCatalogBootstrap': { auth: false },
+        'Query.storefrontHomeFilters': { auth: false },
+        'Query.storefrontModelsByBrand': { auth: false },
+        'Query.storefrontProductSections': { auth: false },
         'Query.storefrontProducts': { auth: false },
         'Query.storefrontProductBySku': { auth: false },
         'Query.storefrontPromoCode': { auth: false },

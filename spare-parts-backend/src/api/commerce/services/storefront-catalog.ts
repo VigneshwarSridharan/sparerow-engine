@@ -1,6 +1,7 @@
 import type { Core } from '@strapi/strapi';
 import { AppError } from '../../../lib/errors';
 import { availableToSell, assertSlug } from '../../../lib/validators';
+import { computeProductUiFlags } from '../../../lib/product-ui-flags';
 
 function resolveMediaUrl(strapi: Core.Strapi, raw: unknown): string | null {
   if (!raw || typeof raw !== 'object' || !('url' in raw)) return null;
@@ -61,6 +62,49 @@ function serializeProduct(strapi: Core.Strapi, p: Record<string, unknown>) {
   };
 }
 
+const PRODUCT_CARD_POPULATE = {
+  partCategory: true,
+  primaryImage: true,
+  images: true,
+  partModel: { populate: { brand: true } },
+  variants: { populate: ['image'] },
+};
+
+/** Ranks products by the featured/bestSeller UI heuristic without joining category/brand/image/variant data for the whole catalog: scans only scalar columns, then hydrates just the winners. */
+async function rankProductsByFlag(strapi: Core.Strapi, flag: 'featured' | 'bestSeller', limit: number) {
+  const candidates = await strapi.db.query('api::product.product').findMany({
+    where: { isActive: true },
+    select: ['id', 'sku', 'quantityOnHand', 'quantityReserved'],
+  });
+  const reviewService = strapi.service('api::commerce.storefront-reviews') as {
+    getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
+  };
+  const reviewAggregates = await reviewService.getBulkAggregates(candidates.map((c) => Number(c.id)));
+
+  const ranked = candidates
+    .map((c) => {
+      const onHand = Number(c.quantityOnHand ?? 0);
+      const reserved = Number(c.quantityReserved ?? 0);
+      const qty = availableToSell(onHand, reserved);
+      const flags = computeProductUiFlags(String(c.sku || ''), qty, reviewAggregates.get(Number(c.id)));
+      return { id: c.id, reviewCount: flags.reviewCount, matches: flags[flag] };
+    })
+    .filter((c) => c.matches)
+    .sort((a, b) => b.reviewCount - a.reviewCount)
+    .slice(0, limit);
+
+  if (ranked.length === 0) return [];
+
+  const rows = await strapi.db.query('api::product.product').findMany({
+    where: { id: { $in: ranked.map((r) => r.id) }, isActive: true },
+    populate: PRODUCT_CARD_POPULATE,
+  });
+  const order = new Map(ranked.map((r, i) => [String(r.id), i]));
+  return rows
+    .map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>))
+    .sort((a, b) => (order.get(String(a.id)) ?? 0) - (order.get(String(b.id)) ?? 0));
+}
+
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
   async listBrands() {
     return strapi.db.query('api::brand.brand').findMany({
@@ -68,6 +112,67 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       orderBy: { name: 'asc' },
       select: ['id', 'documentId', 'slug', 'name', 'isActive'],
     });
+  },
+
+  /** Brands with productCount computed via one indexed count query per brand, instead of scanning every product. */
+  async listBrandsWithCounts() {
+    const brands = await strapi.db.query('api::brand.brand').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+    const counts = await Promise.all(
+      brands.map((brand) =>
+        strapi.db.query('api::product.product').count({
+          where: { partModel: { brand: brand.id }, isActive: true },
+        })
+      )
+    );
+    return brands.map((brand, i) => ({ ...brand, productCount: counts[i] }));
+  },
+
+  /** Categories with productCount computed via one indexed count query per category, instead of scanning every product. */
+  async listCategoriesWithCounts() {
+    const categories = await strapi.db.query('api::part-category.part-category').findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+    const counts = await Promise.all(
+      categories.map((category) =>
+        strapi.db.query('api::product.product').count({
+          where: { partCategory: category.id, isActive: true },
+        })
+      )
+    );
+    return categories.map((category, i) => ({ ...category, productCount: counts[i] }));
+  },
+
+  /** Models for one brand with productCount, scoped to that brand's (small) model list — never scans the full catalog. */
+  async listModelsWithCounts(brandSlug: string) {
+    assertSlug('brandSlug', brandSlug);
+    const brand = await strapi.db.query('api::brand.brand').findOne({
+      where: { slug: brandSlug, isActive: true },
+    });
+    if (!brand) throw new AppError(404, 'BRAND_NOT_FOUND', 'Brand not found');
+    const models = await strapi.db.query('api::part-model.part-model').findMany({
+      where: { brand: brand.id, isActive: true },
+      orderBy: { name: 'asc' },
+      select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+    });
+    const counts = await Promise.all(
+      models.map((model) =>
+        strapi.db.query('api::product.product').count({
+          where: { partModel: model.id, isActive: true },
+        })
+      )
+    );
+    return models.map((model, i) => ({
+      ...model,
+      brandId: brand.id,
+      brandSlug: brand.slug,
+      productCount: counts[i],
+    }));
   },
 
   async listModels(brandSlug: string) {
@@ -181,6 +286,25 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       return serialized.filter((product) => Number(product.availableToSell) > 0);
     }
     return serialized;
+  },
+
+  /** Ordered by createdAt, so no full-catalog heuristic scan is needed — directly indexable. */
+  async listNewArrivalProducts(limit: number) {
+    const products = await strapi.db.query('api::product.product').findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+      limit,
+      populate: PRODUCT_CARD_POPULATE,
+    });
+    return products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
+  },
+
+  async listFeaturedProducts(limit: number) {
+    return rankProductsByFlag(strapi, 'featured', limit);
+  },
+
+  async listBestSellerProducts(limit: number) {
+    return rankProductsByFlag(strapi, 'bestSeller', limit);
   },
 
   async getProductByBrandModelSku(brandSlug: string, modelSlug: string, sku: string) {
