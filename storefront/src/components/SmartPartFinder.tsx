@@ -1,12 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Check, X, Settings2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ProductCard } from '@/components/ProductCard';
-import { Product } from '@/types';
+import { Brand, Product } from '@/types';
 import { getPartImage } from '@/lib/partImages';
-import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { fetchModelsByBrand, fetchStorefrontProducts, HomeFilterCategory } from '@/lib/graphql/storefront';
 
 import appleLogo from '@/assets/brands/apple-logo.png';
 import samsungLogo from '@/assets/brands/samsung-logo.png';
@@ -14,6 +15,8 @@ import xiaomiLogo from '@/assets/brands/xiaomi-logo.png';
 
 interface SmartPartFinderProps {
   onQuickView: (product: Product) => void;
+  brands: Brand[];
+  categories: HomeFilterCategory[];
 }
 
 const BRAND_LOGOS: Record<string, string> = {
@@ -32,11 +35,26 @@ function scrollStepIntoView(el: HTMLElement | null) {
   });
 }
 
-export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
-  const { brands, models, products, partTypes } = useStorefrontData();
+export function SmartPartFinder({ onQuickView, brands, categories }: SmartPartFinderProps) {
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedPartType, setSelectedPartType] = useState<string | null>(null);
+
+  const selectedBrandSlug = brands.find((b) => b.id === selectedBrandId)?.slug ?? null;
+
+  const { data: models = [] } = useQuery({
+    queryKey: ['models-by-brand', selectedBrandSlug],
+    queryFn: () => fetchModelsByBrand(selectedBrandSlug as string),
+    enabled: !!selectedBrandSlug,
+  });
+
+  const selectedModelSlug = models.find((m) => m.id === selectedModelId)?.slug ?? null;
+
+  const { data: modelProducts = [] } = useQuery({
+    queryKey: ['products-by-model', selectedModelSlug],
+    queryFn: () => fetchStorefrontProducts({ modelSlug: selectedModelSlug as string }),
+    enabled: !!selectedModelSlug,
+  });
 
   const step1Ref = useRef<HTMLDivElement>(null);
   const step2Ref = useRef<HTMLDivElement>(null);
@@ -61,23 +79,16 @@ export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
     prevStepRef.current = currentStep;
   }, [currentStep]);
 
-  const filteredModels = useMemo(
-    () => (selectedBrandId ? models.filter(m => m.brandId === selectedBrandId) : []),
-    [selectedBrandId, models]
-  );
-
   const availablePartTypes = useMemo(() => {
     if (!selectedModelId) return [];
-    const types = new Set(products.filter(p => p.modelId === selectedModelId).map(p => p.partType));
-    return partTypes.filter(pt => types.has(pt));
-  }, [selectedModelId, products, partTypes]);
+    const types = new Set(modelProducts.map(p => p.partType));
+    return categories.map(c => c.name).filter(name => types.has(name));
+  }, [selectedModelId, modelProducts, categories]);
 
   const resultProducts = useMemo(() => {
-    if (!selectedBrandId || !selectedModelId || !selectedPartType) return [];
-    return products.filter(
-      p => p.brandId === selectedBrandId && p.modelId === selectedModelId && p.partType === selectedPartType
-    );
-  }, [selectedBrandId, selectedModelId, selectedPartType, products]);
+    if (!selectedPartType) return [];
+    return modelProducts.filter(p => p.partType === selectedPartType);
+  }, [selectedPartType, modelProducts]);
 
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
   const selectedModel = models.find(m => m.id === selectedModelId);
@@ -152,7 +163,7 @@ export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
                 />
                 <span className="font-semibold text-sm">{brand.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {products.filter(p => p.brandId === brand.id).length} parts
+                  {brand.productCount} parts
                 </span>
               </button>
             ))}
@@ -172,7 +183,7 @@ export function SmartPartFinder({ onQuickView }: SmartPartFinderProps) {
               </button>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {filteredModels.map(model => (
+              {models.map(model => (
                 <button
                   key={model.id}
                   onClick={() => { setSelectedModelId(model.id); setSelectedPartType(null); }}
