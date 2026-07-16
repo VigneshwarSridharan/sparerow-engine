@@ -149,18 +149,20 @@ export function SmartPartFinder({ onQuickView, brands, categories }: SmartPartFi
                 key={brand.id}
                 onClick={() => { setSelectedBrandId(brand.id); setSelectedModelId(null); setSelectedPartType(null); }}
                 className={cn(
-                  'flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all hover:shadow-md',
+                  'flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all hover:shadow-glow',
                   selectedBrandId === brand.id
-                    ? 'border-primary bg-primary/5 shadow-md'
+                    ? 'border-primary bg-primary/5 shadow-glow'
                     : 'border-border hover:border-primary/30'
                 )}
               >
-                <img
-                  src={BRAND_LOGOS[brand.name] || '/placeholder.svg'}
-                  alt={`${brand.name} logo`}
-                  className="h-10 w-auto object-contain"
-                  loading="lazy"
-                />
+                <div className="h-14 w-14 rounded-full bg-white flex items-center justify-center p-2.5">
+                  <img
+                    src={BRAND_LOGOS[brand.name] || '/placeholder.svg'}
+                    alt={`${brand.name} logo`}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
                 <span className="font-semibold text-sm">{brand.name}</span>
                 <span className="text-xs text-muted-foreground">
                   {brand.productCount} parts

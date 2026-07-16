@@ -25,7 +25,7 @@ export function ProductCard({ product, onQuickView, onViewDetails }: ProductCard
 
   return (
     <div
-      className="group bg-card rounded-xl border overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-1"
+      className="group bg-card rounded-xl border overflow-hidden transition-all duration-200 hover:shadow-glow hover:border-primary/40 hover:-translate-y-1"
       onClick={() => onViewDetails?.(product)}
       role={onViewDetails ? 'button' : undefined}
     >
@@ -43,8 +43,8 @@ export function ProductCard({ product, onQuickView, onViewDetails }: ProductCard
           {product.discountPercent > 0 && (
             <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5">-{product.discountPercent}%</Badge>
           )}
-          {product.bestSeller && <Badge className="bg-accent text-accent-foreground text-[10px] px-1.5">Best Seller</Badge>}
-          {product.newArrival && <Badge className="bg-success text-success-foreground text-[10px] px-1.5">New</Badge>}
+          {product.bestSeller && <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5">Best Seller</Badge>}
+          {product.newArrival && <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5">New</Badge>}
           {!product.inStock && <Badge variant="secondary" className="text-[10px] px-1.5">Out of Stock</Badge>}
           {product.inStock && product.stockQty <= 15 && <Badge className="bg-warning text-warning-foreground text-[10px] px-1.5">Low Stock</Badge>}
         </div>

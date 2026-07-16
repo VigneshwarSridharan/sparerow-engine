@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 export function Footer() {
   const navigate = useNavigate();
   return (
-    <footer className="bg-foreground text-background mt-16">
+    <footer className="bg-card text-foreground border-t mt-16">
       <div className="container py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
@@ -38,7 +38,7 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-background/20 mt-8 pt-8 text-center text-sm opacity-50 flex flex-wrap justify-center gap-4">
+        <div className="border-t border-border mt-8 pt-8 text-center text-sm opacity-50 flex flex-wrap justify-center gap-4">
           <span>© 2026 SpareHub. All rights reserved.</span>
           <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/terms')}>Terms &amp; Conditions</button>
           <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/privacy')}>Privacy Policy</button>
