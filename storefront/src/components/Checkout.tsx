@@ -84,7 +84,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
         email: form.email || undefined,
         contact: form.phone || undefined,
       },
-      theme: { color: '#2563eb' },
+      theme: { color: '#8b5cf6' },
       modal: {
         ondismiss: () => {
           setRazorpayOpen(false);
