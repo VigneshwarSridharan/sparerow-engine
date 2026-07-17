@@ -52,17 +52,43 @@ step "Shipping images to VPS ($VPS_HOST)"
 scp_vps "$TMP_DIR/strapi_prod.tar.gz" "$TMP_DIR/storefront_prod.tar.gz" "$VPS_HOST:/root/"
 
 step "Loading images and recreating containers on VPS"
-ssh_vps bash <<REMOTE
-set -e
-cd "$VPS_DIR"
-git fetch origin main --quiet
-git checkout main --quiet
-git reset --hard origin/main --quiet
-docker load < /root/strapi_prod.tar.gz
-docker load < /root/storefront_prod.tar.gz
-rm -f /root/strapi_prod.tar.gz /root/storefront_prod.tar.gz
-docker compose --profile production up -d strapi_prod storefront_prod
-REMOTE
+# Runs detached (nohup + disown) so a dropped SSH session (this VPS link is
+# flaky under load) doesn't leave the recreate half-finished. We poll the
+# remote log instead of relying on the foreground SSH session completing.
+REMOTE_LOG="/root/deploy-$(date +%s).log"
+ssh_vps "nohup bash -c '
+  set -e
+  cd \"$VPS_DIR\"
+  git fetch origin main --quiet
+  git checkout main --quiet
+  git reset --hard origin/main --quiet
+  docker load < /root/strapi_prod.tar.gz
+  docker load < /root/storefront_prod.tar.gz
+  rm -f /root/strapi_prod.tar.gz /root/storefront_prod.tar.gz
+  docker compose --profile production up -d strapi_prod storefront_prod
+  # strapi_prod/storefront_prod get new container IPs on recreate; nginx
+  # resolves upstream hostnames once at worker start and caches them, so it
+  # must be reloaded or it 502s against the stale IPs.
+  docker exec spare-parts-reverse-proxy nginx -s reload
+  echo DEPLOY_REMOTE_DONE
+' > $REMOTE_LOG 2>&1 < /dev/null & disown"
+
+step "Waiting for remote deploy step to finish (log: $REMOTE_LOG)"
+for _ in $(seq 1 60); do
+  if ssh_vps "grep -q DEPLOY_REMOTE_DONE $REMOTE_LOG" 2>/dev/null; then
+    break
+  fi
+  if ssh_vps "grep -qi 'error\|Traceback' $REMOTE_LOG" 2>/dev/null; then
+    ssh_vps "cat $REMOTE_LOG"
+    fail "remote deploy step errored — see log above ($REMOTE_LOG on VPS)"
+  fi
+  sleep 5
+done
+ssh_vps "grep -q DEPLOY_REMOTE_DONE $REMOTE_LOG" 2>/dev/null || {
+  ssh_vps "cat $REMOTE_LOG" || true
+  fail "remote deploy step did not finish within 5 minutes ($REMOTE_LOG on VPS)"
+}
+ssh_vps "cat $REMOTE_LOG; rm -f $REMOTE_LOG"
 
 step "Waiting for containers to settle"
 sleep 8
