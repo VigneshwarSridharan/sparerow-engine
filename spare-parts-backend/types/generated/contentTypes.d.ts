@@ -458,6 +458,7 @@ export interface ApiBrandBrand extends Struct.CollectionTypeSchema {
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::brand.brand'> &
       Schema.Attribute.Private;
+    logo: Schema.Attribute.Media<'images'>;
     models: Schema.Attribute.Relation<
       'oneToMany',
       'api::part-model.part-model'

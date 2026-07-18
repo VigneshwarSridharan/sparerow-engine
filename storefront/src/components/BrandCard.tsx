@@ -8,6 +8,8 @@ interface BrandCardProps {
 }
 
 export function BrandCard({ brand, onClick, isSelected }: BrandCardProps) {
+  const logo = brand.logo && brand.logo !== '/placeholder.svg' ? brand.logo : undefined;
+
   return (
     <button
       onClick={() => onClick(brand)}
@@ -16,8 +18,19 @@ export function BrandCard({ brand, onClick, isSelected }: BrandCardProps) {
         isSelected ? "border-primary bg-primary/5 shadow-glow" : "border-border bg-card"
       )}
     >
-      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary group-hover:bg-primary/20 transition-colors">
-        {brand.name.charAt(0)}
+      <div
+        className={cn(
+          "w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold overflow-hidden transition-colors",
+          logo
+            ? "bg-white p-3"
+            : "bg-primary/10 text-primary group-hover:bg-primary/20"
+        )}
+      >
+        {logo ? (
+          <img src={logo} alt={`${brand.name} logo`} className="w-full h-full object-contain" />
+        ) : (
+          brand.name.charAt(0)
+        )}
       </div>
       <div className="text-center">
         <h3 className="font-semibold text-sm">{brand.name}</h3>
