@@ -14,6 +14,10 @@ build
 .env
 .env.*
 !.env.docker.example
+# Uploaded media is per-environment, never bake the local dev machine's
+# uploads into the image (a redeploy would otherwise overwrite prod's
+# uploaded files with whatever happens to be on the builder's disk).
+public/uploads
 
 # Git & IDE
 .git
