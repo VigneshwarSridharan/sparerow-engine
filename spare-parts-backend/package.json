@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "seed": "npm run build && npx esbuild scripts/seed.ts --bundle --platform=node --packages=external --format=cjs --outfile=.tmp/seed-bundle.cjs && node .tmp/seed-bundle.cjs",
     "seed:legal": "npm run build && npx esbuild scripts/seed-legal.ts --bundle --platform=node --packages=external --format=cjs --outfile=.tmp/seed-legal-bundle.cjs && node .tmp/seed-legal-bundle.cjs",
+    "seed:products": "npx esbuild scripts/seed-products.ts --bundle --platform=node --packages=external --format=cjs --outfile=.tmp/seed-products-bundle.cjs && node .tmp/seed-products-bundle.cjs",
     "upload:brand-logos": "npx esbuild scripts/upload-brand-logos.ts --bundle --platform=node --packages=external --format=cjs --outfile=.tmp/upload-brand-logos-bundle.cjs && node .tmp/upload-brand-logos-bundle.cjs",
     "upgrade": "npx @strapi/upgrade latest",
     "upgrade:dry": "npx @strapi/upgrade latest --dry"
@@ -34,7 +35,8 @@
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",
     "resend": "^6.12.3",
-    "styled-components": "^6.0.0"
+    "styled-components": "^6.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
