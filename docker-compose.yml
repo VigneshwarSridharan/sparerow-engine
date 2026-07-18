@@ -120,6 +120,8 @@ services:
       HOST: 0.0.0.0
       DATABASE_CLIENT: postgres
       DATABASE_URL: postgresql://${POSTGRES_USER:-strapi}:${POSTGRES_PASSWORD:-strapi}@postgres_prod:5432/${POSTGRES_DB:-strapi_spare}
+    volumes:
+      - strapi_uploads:/app/public/uploads
     depends_on:
       postgres_prod:
         condition: service_healthy
@@ -182,3 +184,5 @@ volumes:
     name: spare_parts_postgres_dev_data
   postgres_data:
     name: spare_parts_postgres_data
+  strapi_uploads:
+    name: spare_parts_strapi_uploads
