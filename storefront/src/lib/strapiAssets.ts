@@ -24,3 +24,11 @@ export function resolveProductImageUrl(
   }
   return getPartImage(partType) ?? '/placeholder.svg';
 }
+
+/** Prefer an uploaded brand logo from Strapi media (`/uploads/...`); caller applies further fallbacks. */
+export function resolveBrandLogoUrl(logoUrl: string | null | undefined): string | null {
+  if (!logoUrl) return null;
+  if (/^https?:\/\//i.test(logoUrl)) return logoUrl;
+  const path = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+  return `${getStrapiOrigin()}${path}`;
+}

@@ -24,6 +24,12 @@
       "type": "boolean",
       "default": true
     },
+    "logo": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
     "models": {
       "type": "relation",
       "relation": "oneToMany",

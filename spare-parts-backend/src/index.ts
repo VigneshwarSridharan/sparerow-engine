@@ -37,6 +37,7 @@ export default {
           name: String!
           isActive: Boolean!
           productCount: Int!
+          logoUrl: String
         }
 
         type StorefrontModel {

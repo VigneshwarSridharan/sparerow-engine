@@ -13,6 +13,18 @@ function resolveMediaUrl(strapi: Core.Strapi, raw: unknown): string | null {
 }
 
 
+function serializeBrand(strapi: Core.Strapi, b: Record<string, unknown>) {
+  return {
+    id: b.id,
+    documentId: b.documentId,
+    slug: b.slug,
+    name: b.name,
+    isActive: b.isActive,
+    logoUrl: resolveMediaUrl(strapi, b.logo),
+  };
+}
+
+
 function serializeVariant(strapi: Core.Strapi, v: Record<string, unknown>) {
   const onHand = Number(v.quantityOnHand ?? 0);
   const reserved = Number(v.quantityReserved ?? 0);
@@ -107,11 +119,13 @@ async function rankProductsByFlag(strapi: Core.Strapi, flag: 'featured' | 'bestS
 
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
   async listBrands() {
-    return strapi.db.query('api::brand.brand').findMany({
+    const brands = await strapi.db.query('api::brand.brand').findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
       select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+      populate: { logo: true },
     });
+    return brands.map((brand) => serializeBrand(strapi, brand as unknown as Record<string, unknown>));
   },
 
   /** Brands with productCount computed via one indexed count query per brand, instead of scanning every product. */
@@ -120,6 +134,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       where: { isActive: true },
       orderBy: { name: 'asc' },
       select: ['id', 'documentId', 'slug', 'name', 'isActive'],
+      populate: { logo: true },
     });
     const counts = await Promise.all(
       brands.map((brand) =>
@@ -128,7 +143,10 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         })
       )
     );
-    return brands.map((brand, i) => ({ ...brand, productCount: counts[i] }));
+    return brands.map((brand, i) => ({
+      ...serializeBrand(strapi, brand as unknown as Record<string, unknown>),
+      productCount: counts[i],
+    }));
   },
 
   /** Categories with productCount computed via one indexed count query per category, instead of scanning every product. */

@@ -1,10 +1,11 @@
 import { Brand, Model, Product } from '@/types';
 import { graphqlRequest } from './client';
-import { resolveProductImageUrl } from '@/lib/strapiAssets';
+import { resolveProductImageUrl, resolveBrandLogoUrl } from '@/lib/strapiAssets';
+import { getBrandLogo } from '@/lib/brandLogos';
 
 type BootstrapResponse = {
   storefrontCatalogBootstrap: {
-    brands: Array<{ id: string; name: string; slug: string; productCount: number }>;
+    brands: Array<{ id: string; name: string; slug: string; productCount: number; logoUrl: string | null }>;
     models: Array<{
       id: string;
       name: string;
@@ -111,7 +112,7 @@ export type StorefrontBootstrapData = {
 const STOREFRONT_BOOTSTRAP_QUERY = `
   query StorefrontBootstrap {
     storefrontCatalogBootstrap {
-      brands { id name slug productCount }
+      brands { id name slug productCount logoUrl }
       models { id name slug modelNumber brandId productCount }
       categories { id name slug productCount }
       products {
@@ -266,7 +267,7 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
     name: brand.name,
     slug: brand.slug,
     productCount: brand.productCount,
-    logo: '/placeholder.svg',
+    logo: resolveBrandLogoUrl(brand.logoUrl) ?? getBrandLogo(brand.slug) ?? '/placeholder.svg',
   }));
 
   const models: Model[] = bootstrap.models.map((model) => ({
@@ -336,7 +337,7 @@ const PRODUCT_CARD_FIELDS = `
 const HOME_FILTERS_QUERY = `
   query StorefrontHomeFilters {
     storefrontHomeFilters {
-      brands { id name slug productCount }
+      brands { id name slug productCount logoUrl }
       categories { id name slug productCount }
     }
   }
@@ -372,7 +373,7 @@ export type HomeFilterCategory = { id: string; name: string; slug: string; produ
 
 type HomeFiltersResponse = {
   storefrontHomeFilters: {
-    brands: Array<{ id: string; name: string; slug: string; productCount: number }>;
+    brands: Array<{ id: string; name: string; slug: string; productCount: number; logoUrl: string | null }>;
     categories: Array<{ id: string; name: string; slug: string; productCount: number }>;
   };
 };
@@ -388,7 +389,7 @@ export async function fetchStorefrontHomeFilters(): Promise<{
       name: brand.name,
       slug: brand.slug,
       productCount: brand.productCount,
-      logo: '/placeholder.svg',
+      logo: resolveBrandLogoUrl(brand.logoUrl) ?? getBrandLogo(brand.slug) ?? '/placeholder.svg',
     })),
     categories: data.storefrontHomeFilters.categories.map((category) => ({
       id: String(category.id),
