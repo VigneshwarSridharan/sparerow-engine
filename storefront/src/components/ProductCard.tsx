@@ -6,7 +6,6 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { cn } from '@/lib/utils';
 import { getPartImage } from '@/lib/partImages';
-import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface ProductCardProps {
   product: Product;
@@ -17,9 +16,6 @@ interface ProductCardProps {
 export function ProductCard({ product, onQuickView, onViewDetails }: ProductCardProps) {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { brands, models } = useStorefrontData();
-  const brand = brands.find(b => b.id === product.brandId);
-  const model = models.find(m => m.id === product.modelId);
   const inWishlist = isInWishlist(product.id);
   const partImage = product.image ? product.image : getPartImage(product.partType);
 
@@ -64,7 +60,7 @@ export function ProductCard({ product, onQuickView, onViewDetails }: ProductCard
       </div>
 
       <div className="p-3">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{brand?.name} · {model?.name}</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{product.brandName} · {product.modelName}</p>
         <h3 className="font-medium text-sm mt-1 leading-tight line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
         <p className="text-xs text-muted-foreground mt-1">{product.partType}</p>
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +9,9 @@ import { ProductCard } from '@/components/ProductCard';
 import { FilterState, SortOption } from '@/types';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { fetchModelsByBrand, fetchStorefrontProducts } from '@/lib/graphql/storefront';
+
+const PAGE_SIZE = 60;
 
 function buildInitialFilters(searchParams: URLSearchParams, maxPrice: number): FilterState {
   return {
@@ -22,8 +26,7 @@ function buildInitialFilters(searchParams: URLSearchParams, maxPrice: number): F
 }
 
 export default function ProductListingPage() {
-  const { brands, models, products, isLoading } = useStorefrontData();
-  const maxPrice = Math.max(0, ...products.map((product) => product.price));
+  const { brands, categories, maxPrice, isLoading: isMetaLoading } = useStorefrontData();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
@@ -36,28 +39,51 @@ export default function ProductListingPage() {
     }
   }, [maxPrice, filters.priceRange]);
 
+  const brandSlug = filters.brandId ? brands.find((b) => b.id === filters.brandId)?.slug : undefined;
+  // Same query key as FilterDrawer's own brand-scoped model fetch — react-query dedupes the request.
+  const { data: brandModels = [] } = useQuery({
+    queryKey: ['models-by-brand', brandSlug],
+    queryFn: () => fetchModelsByBrand(brandSlug as string),
+    enabled: !!brandSlug,
+  });
+  const modelSlug = filters.modelId ? brandModels.find((m) => m.id === filters.modelId)?.slug : undefined;
+  // Only the first selected part type can be scoped server-side (the URL only ever persists one);
+  // the client-side filter below still applies on top, for the rare case of extra in-session picks.
+  const categorySlug = filters.partTypes[0]
+    ? categories.find((c) => c.name === filters.partTypes[0])?.slug
+    : undefined;
+
+  // Server narrows by brand/model/category/search/stock and paginates — never loads the whole
+  // catalog in one request. Price range is refined client-side since it's a continuous filter.
+  const {
+    data: productPages,
+    isLoading: isProductsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['product-listing', brandSlug, modelSlug, categorySlug, filters.searchQuery, filters.inStockOnly],
+    queryFn: ({ pageParam }) =>
+      fetchStorefrontProducts({
+        brandSlug,
+        modelSlug,
+        categorySlug,
+        search: filters.searchQuery || undefined,
+        inStockOnly: filters.inStockOnly || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === PAGE_SIZE ? allPages.length * PAGE_SIZE : undefined,
+  });
+  const products = useMemo(() => productPages?.pages.flat() ?? [], [productPages]);
+  const isLoading = isMetaLoading || isProductsLoading;
+
   const filteredProducts = useMemo(() => {
     let result = [...products];
-    if (filters.brandId) result = result.filter((product) => product.brandId === filters.brandId);
-    if (filters.modelId) result = result.filter((product) => product.modelId === filters.modelId);
     if (filters.partTypes.length > 0) result = result.filter((product) => filters.partTypes.includes(product.partType));
-    if (filters.inStockOnly) result = result.filter((product) => product.inStock);
     result = result.filter((product) => product.discountPrice >= filters.priceRange[0] && product.discountPrice <= filters.priceRange[1]);
-
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      result = result.filter((product) => {
-        const brand = brands.find((item) => item.id === product.brandId);
-        const model = models.find((item) => item.id === product.modelId);
-        return (
-          product.name.toLowerCase().includes(query) ||
-          product.partType.toLowerCase().includes(query) ||
-          product.sku.toLowerCase().includes(query) ||
-          brand?.name.toLowerCase().includes(query) ||
-          model?.name.toLowerCase().includes(query)
-        );
-      });
-    }
 
     switch (filters.sort) {
       case 'price-low':
@@ -78,7 +104,7 @@ export default function ProductListingPage() {
     }
 
     return result;
-  }, [filters, products, brands, models]);
+  }, [filters, products]);
 
   const updateFilters = (nextFilters: FilterState) => {
     setFilters(nextFilters);
@@ -136,16 +162,25 @@ export default function ProductListingPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onQuickView={onQuickView}
-                  onViewDetails={() => navigate(`/products/${product.id}`)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onQuickView={onQuickView}
+                    onViewDetails={() => navigate(`/products/${product.id}`)}
+                  />
+                ))}
+              </div>
+              {hasNextPage && (
+                <div className="flex justify-center mt-8">
+                  <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                    {isFetchingNextPage ? 'Loading…' : 'Load More'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

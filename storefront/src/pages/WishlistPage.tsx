@@ -1,16 +1,21 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/ProductCard';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { StorefrontOutletContext } from '@/layouts/StorefrontLayout';
-import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { fetchStorefrontProducts } from '@/lib/graphql/storefront';
 
 export default function WishlistPage() {
   const navigate = useNavigate();
-  const { products, isLoading } = useStorefrontData();
   const { wishlistIds } = useWishlist();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
-  const wishlistProducts = products.filter((product) => wishlistIds.includes(product.id));
+
+  const { data: wishlistProducts = [], isLoading } = useQuery({
+    queryKey: ['wishlist-products', wishlistIds],
+    queryFn: () => fetchStorefrontProducts({ ids: wishlistIds }),
+    enabled: wishlistIds.length > 0,
+  });
 
   return (
     <div className="container py-8">

@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { CartItem, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { fetchStorefrontProducts } from '@/lib/graphql/storefront';
 import { useStorefrontData } from './StorefrontDataContext';
 
 interface CartContextType {
@@ -22,7 +24,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { promoCodes, products } = useStorefrontData();
+  const { promoCodes } = useStorefrontData();
   const [items, setItems] = useState<CartItem[]>(() => {
     try { return JSON.parse(localStorage.getItem('cart') || '[]'); } catch { return []; }
   });
@@ -31,12 +33,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => { localStorage.setItem('cart', JSON.stringify(items)); }, [items]);
+
+  // Prune cart items whose SKU no longer exists in the catalog — scoped to just the cart's own
+  // SKUs instead of loading the whole product table to check membership.
+  const cartSkus = useMemo(() => Array.from(new Set(items.map((item) => item.product.sku))), [items]);
+  const { data: validCartProducts } = useQuery({
+    queryKey: ['cart-sku-validation', cartSkus],
+    queryFn: () => fetchStorefrontProducts({ skus: cartSkus }),
+    enabled: cartSkus.length > 0,
+  });
   useEffect(() => {
-    if (products.length === 0) return;
-    setItems((prev) =>
-      prev.filter((item) => products.some((product) => product.sku === item.product.sku))
-    );
-  }, [products]);
+    if (!validCartProducts) return;
+    const validSkuSet = new Set(validCartProducts.map((product) => product.sku));
+    setItems((prev) => prev.filter((item) => validSkuSet.has(item.product.sku)));
+  }, [validCartProducts]);
 
   const addToCart = useCallback((product: Product, quantity = 1, variantSku?: string) => {
     setItems(prev => {

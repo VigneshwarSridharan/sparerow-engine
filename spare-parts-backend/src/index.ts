@@ -86,8 +86,10 @@ export default {
           isActive: Boolean!
           brandId: ID!
           brandSlug: String!
+          brandName: String!
           modelId: ID!
           modelSlug: String!
+          modelName: String!
           categoryId: ID
           categorySlug: String
           categoryName: String
@@ -134,16 +136,20 @@ export default {
           categorySlug: String
           search: String
           inStockOnly: Boolean
+          ids: [ID!]
+          skus: [String!]
+          limit: Int
+          offset: Int
         }
 
-        type StorefrontCatalogBootstrap {
+        type StorefrontCatalogMeta {
           brands: [StorefrontBrand!]!
-          models: [StorefrontModel!]!
           categories: [StorefrontCategory!]!
-          products: [StorefrontProduct!]!
+          partTypes: [String!]!
           promoCodes: [StorefrontPromoCode!]!
           defaultTaxRatePercent: Int!
           originStateCode: String!
+          maxPriceInMinor: String!
         }
 
         type StorefrontHomeFilters {
@@ -355,7 +361,7 @@ export default {
         }
 
         type Query {
-          storefrontCatalogBootstrap(filter: StorefrontCatalogFilterInput): StorefrontCatalogBootstrap!
+          storefrontCatalogMeta: StorefrontCatalogMeta!
           storefrontHomeFilters: StorefrontHomeFilters!
           storefrontModelsByBrand(brandSlug: String!): [StorefrontModel!]!
           storefrontProductSections(limit: Int): StorefrontProductSections!
@@ -391,90 +397,37 @@ export default {
       `,
       resolvers: {
         Query: {
-          storefrontCatalogBootstrap: async (_: unknown, args: { filter?: Record<string, unknown> }) => {
+          storefrontCatalogMeta: async () => {
             try {
               const catalog = strapi.service('api::commerce.storefront-catalog') as {
                 listBrands: () => Promise<Array<Record<string, unknown>>>;
-                listAllModels: () => Promise<Array<Record<string, unknown>>>;
                 listCategories: () => Promise<Array<Record<string, unknown>>>;
-                listAllProducts: (filters?: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+                listCatalogCounts: () => Promise<{
+                  brandCounts: Map<string, number>;
+                  modelCounts: Map<string, number>;
+                  categoryCounts: Map<string, number>;
+                }>;
+                getMaxPriceInMinor: () => Promise<number>;
               };
-              const promoService = strapi.service('api::commerce.storefront-promo') as {
-                resolvePromo: (codeInput: string) => Promise<Record<string, unknown> | null>;
-              };
-              const [brandsRaw, modelsRaw, categoriesRaw, productsRaw, promosRaw] = await Promise.all([
+              const [brandsRaw, categoriesRaw, counts, promosRaw, maxPriceInMinor] = await Promise.all([
                 catalog.listBrands(),
-                catalog.listAllModels(),
                 catalog.listCategories(),
-                catalog.listAllProducts(args.filter),
+                catalog.listCatalogCounts(),
                 strapi.db.query('api::promo-code.promo-code').findMany({ where: { isActive: true }, orderBy: { code: 'asc' } }),
+                catalog.getMaxPriceInMinor(),
               ]);
-              const modelProductCount = new Map<string, number>();
-              const brandProductCount = new Map<string, number>();
-              const categoryProductCount = new Map<string, number>();
-              for (const product of productsRaw) {
-                const modelId = String((product.partModel as Record<string, unknown>)?.id || '');
-                const brandId = String(((product.partModel as Record<string, unknown>)?.brand as Record<string, unknown>)?.id || '');
-                const categoryId = String((product.partCategory as Record<string, unknown>)?.id || '');
-                if (modelId) modelProductCount.set(modelId, (modelProductCount.get(modelId) || 0) + 1);
-                if (brandId) brandProductCount.set(brandId, (brandProductCount.get(brandId) || 0) + 1);
-                if (categoryId) categoryProductCount.set(categoryId, (categoryProductCount.get(categoryId) || 0) + 1);
-              }
 
               const brands = brandsRaw.map((brand) => ({
                 ...brand,
-                productCount: brandProductCount.get(String(brand.id)) || 0,
+                productCount: counts.brandCounts.get(String(brand.id)) || 0,
               }));
-              const models = modelsRaw.map((model) => {
-                const brand = model.brand as Record<string, unknown>;
-                return {
-                  ...model,
-                  modelNumber: normalizeModelName(String(model.name || '')),
-                  brandId: brand?.id,
-                  brandSlug: brand?.slug,
-                  productCount: modelProductCount.get(String(model.id)) || 0,
-                };
-              });
               const categories = categoriesRaw.map((category) => ({
                 ...category,
-                productCount: categoryProductCount.get(String(category.id)) || 0,
+                productCount: counts.categoryCounts.get(String(category.id)) || 0,
               }));
-
-              const reviewService = strapi.service('api::commerce.storefront-reviews') as {
-                getBulkAggregates: (ids: number[]) => Promise<Map<number, { averageRating: number; reviewCount: number }>>;
-              };
-              const productIds = productsRaw.map((p) => Number(p.id)).filter(Boolean);
-              const reviewAggregates = await reviewService.getBulkAggregates(productIds);
-
-              const products = productsRaw.map((product) => {
-                const sku = String(product.sku || '');
-                const pid = Number(product.id);
-                const agg = reviewAggregates.get(pid);
-                const flags = computeProductUiFlags(sku, Number(product.availableToSell || 0), agg);
-                const model = (product.partModel || {}) as Record<string, unknown>;
-                const brand = (model.brand || {}) as Record<string, unknown>;
-                const category = (product.partCategory || {}) as Record<string, unknown>;
-                const priceInMinor = Number(product.priceInMinor || 0);
-                return {
-                  ...product,
-                  brandId: brand.id,
-                  brandSlug: brand.slug,
-                  modelId: model.id,
-                  modelSlug: model.slug,
-                  categoryId: category.id || null,
-                  categorySlug: category.slug || null,
-                  categoryName: category.name || null,
-                  uiPrice: Math.round(priceInMinor / 100),
-                  uiDiscountPrice: Math.round(priceInMinor / 100),
-                  uiDiscountPercent: 0,
-                  uiRating: flags.rating,
-                  uiReviewCount: flags.reviewCount,
-                  uiFeatured: flags.featured,
-                  uiBestSeller: flags.bestSeller,
-                  uiNewArrival: flags.newArrival,
-                  uiWarranty: '90 Days',
-                };
-              });
+              const partTypes = categories
+                .filter((category) => (category.productCount as number) > 0)
+                .map((category) => String((category as Record<string, unknown>).name));
 
               const promoCodes = promosRaw.map((promo) => ({
                 id: promo.id,
@@ -498,7 +451,15 @@ export default {
               const defaultTaxRatePercent = globalTaxRule ? Number(globalTaxRule.ratePercent) : 0;
               const originStateCode = String(strapi.config.get('shipping.origin.state') || '');
 
-              return { brands, models, categories, products, promoCodes, defaultTaxRatePercent, originStateCode };
+              return {
+                brands,
+                categories,
+                partTypes,
+                promoCodes,
+                defaultTaxRatePercent,
+                originStateCode,
+                maxPriceInMinor: String(maxPriceInMinor),
+              };
             } catch (error) {
               throwGraphQLError(error);
             }
@@ -565,8 +526,10 @@ export default {
                   ...product,
                   brandId: brand.id,
                   brandSlug: brand.slug,
+                  brandName: brand.name || '',
                   modelId: model.id,
                   modelSlug: model.slug,
+                  modelName: model.name || '',
                   categoryId: category.id || null,
                   categorySlug: category.slug || null,
                   categoryName: category.name || null,
@@ -614,8 +577,10 @@ export default {
                   ...product,
                   brandId: brand.id,
                   brandSlug: brand.slug,
+                  brandName: brand.name || '',
                   modelId: model.id,
                   modelSlug: model.slug,
+                  modelName: model.name || '',
                   categoryId: category.id || null,
                   categorySlug: category.slug || null,
                   categoryName: category.name || null,
@@ -659,8 +624,10 @@ export default {
                 ...product,
                 brandId: brand.id,
                 brandSlug: brand.slug,
+                brandName: brand.name || '',
                 modelId: model.id,
                 modelSlug: model.slug,
+                modelName: model.name || '',
                 categoryId: category.id || null,
                 categorySlug: category.slug || null,
                 categoryName: category.name || null,
@@ -1127,7 +1094,7 @@ export default {
         },
       },
       resolversConfig: {
-        'Query.storefrontCatalogBootstrap': { auth: false },
+        'Query.storefrontCatalogMeta': { auth: false },
         'Query.storefrontHomeFilters': { auth: false },
         'Query.storefrontModelsByBrand': { auth: false },
         'Query.storefrontProductSections': { auth: false },

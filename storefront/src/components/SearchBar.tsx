@@ -2,8 +2,9 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Product } from '@/types';
-import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { fetchStorefrontProducts } from '@/lib/graphql/storefront';
 
 interface SearchBarProps {
   isOpen: boolean;
@@ -13,23 +14,25 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ isOpen, onClose, onProductSelect, onNavigateToCatalog }: SearchBarProps) {
-  const { products, brands, models } = useStorefrontData();
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) { setTimeout(() => inputRef.current?.focus(), 100); }
-    else { setQuery(''); }
+    else { setQuery(''); setDebouncedQuery(''); }
   }, [isOpen]);
 
-  const results = query.length >= 2 ? products.filter(p => {
-    const q = query.toLowerCase();
-    const brand = brands.find(b => b.id === p.brandId);
-    const model = models.find(m => m.id === p.modelId);
-    return p.name.toLowerCase().includes(q) || p.partType.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) || brand?.name.toLowerCase().includes(q) ||
-      model?.name.toLowerCase().includes(q);
-  }).slice(0, 8) : [];
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const { data: results = [] } = useQuery({
+    queryKey: ['search-products', debouncedQuery],
+    queryFn: () => fetchStorefrontProducts({ search: debouncedQuery, limit: 8 }),
+    enabled: debouncedQuery.length >= 2,
+  });
 
   if (!isOpen) return null;
 
@@ -53,22 +56,18 @@ export function SearchBar({ isOpen, onClose, onProductSelect, onNavigateToCatalo
 
         {results.length > 0 && (
           <div className="bg-card rounded-lg border shadow-lg overflow-hidden">
-            {results.map(p => {
-              const brand = brands.find(b => b.id === p.brandId);
-              const model = models.find(m => m.id === p.modelId);
-              return (
-                <button key={p.id} className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3 border-b last:border-0 transition-colors" onClick={() => { onProductSelect(p); onClose(); }}>
-                  <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                    {p.partType.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{brand?.name} · {model?.name} · {p.partType}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-primary">₹{p.discountPrice.toLocaleString()}</span>
-                </button>
-              );
-            })}
+            {results.map(p => (
+              <button key={p.id} className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3 border-b last:border-0 transition-colors" onClick={() => { onProductSelect(p); onClose(); }}>
+                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
+                  {p.partType.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">{p.brandName} · {p.modelName} · {p.partType}</p>
+                </div>
+                <span className="text-sm font-semibold text-primary">₹{p.discountPrice.toLocaleString()}</span>
+              </button>
+            ))}
             {query.length >= 2 && (
               <button className="w-full px-4 py-3 text-center text-sm text-primary font-medium hover:bg-muted/50" onClick={() => { onNavigateToCatalog(query); onClose(); }}>
                 View all results for "{query}" →
@@ -77,7 +76,7 @@ export function SearchBar({ isOpen, onClose, onProductSelect, onNavigateToCatalo
           </div>
         )}
 
-        {query.length >= 2 && results.length === 0 && (
+        {debouncedQuery.length >= 2 && results.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <p className="text-lg">No results found for "{query}"</p>
             <p className="text-sm mt-1">Try a different search term</p>

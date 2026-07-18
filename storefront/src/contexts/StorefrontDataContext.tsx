@@ -1,22 +1,21 @@
 import React, { createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStorefrontBootstrap, StorefrontBootstrapData } from '@/lib/graphql/storefront';
+import { fetchStorefrontCatalogMeta, StorefrontCatalogMetaData } from '@/lib/graphql/storefront';
 
-type StorefrontDataContextValue = StorefrontBootstrapData & {
+type StorefrontDataContextValue = StorefrontCatalogMetaData & {
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
 };
 
-const defaultData: StorefrontBootstrapData = {
+const defaultData: StorefrontCatalogMetaData = {
   brands: [],
-  models: [],
-  products: [],
   categories: [],
   partTypes: [],
   promoCodes: [],
   defaultTaxRatePercent: 0,
   originStateCode: '',
+  maxPrice: 0,
 };
 
 const StorefrontDataContext = createContext<StorefrontDataContextValue>({
@@ -28,8 +27,8 @@ const StorefrontDataContext = createContext<StorefrontDataContextValue>({
 
 export function StorefrontDataProvider({ children }: { children: React.ReactNode }) {
   const query = useQuery({
-    queryKey: ['storefront-bootstrap'],
-    queryFn: () => fetchStorefrontBootstrap(),
+    queryKey: ['storefront-catalog-meta'],
+    queryFn: () => fetchStorefrontCatalogMeta(),
   });
 
   const value: StorefrontDataContextValue = {
