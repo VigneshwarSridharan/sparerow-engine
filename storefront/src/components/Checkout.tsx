@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CheckCircle } from 'lucide-react';
 import {
   createStorefrontOrder,
+  fetchStorefrontProducts,
   prepareStorefrontRazorpayPayment,
   verifyStorefrontRazorpayPayment,
 } from '@/lib/graphql/storefront';
@@ -30,7 +32,7 @@ type PaymentSession = {
 
 export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const { items, couponCode, couponDiscount, clearCart } = useCart();
-  const { products, defaultTaxRatePercent, originStateCode } = useStorefrontData();
+  const { defaultTaxRatePercent, originStateCode } = useStorefrontData();
   const { token: customerToken } = useCustomerAuth();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderIdDisplay, setOrderIdDisplay] = useState('');
@@ -48,7 +50,17 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     pincode: '',
   });
 
-  const validSkuSet = new Set(products.map((product) => product.sku));
+  const cartSkus = useMemo(() => Array.from(new Set(items.map((item) => item.product.sku))), [items]);
+  const { data: validCartProducts } = useQuery({
+    queryKey: ['checkout-sku-validation', cartSkus],
+    queryFn: () => fetchStorefrontProducts({ skus: cartSkus }),
+    enabled: cartSkus.length > 0,
+  });
+  // CartContext already prunes stale SKUs on its own scoped validation; while this checkout-local
+  // check is still loading, treat cart items as valid rather than flashing an empty cart.
+  const validSkuSet = validCartProducts
+    ? new Set(validCartProducts.map((product) => product.sku))
+    : new Set(items.map((item) => item.product.sku));
   const validItems = items.filter((item) => validSkuSet.has(item.product.sku));
   const subtotal = validItems.reduce((sum, i) => sum + i.product.discountPrice * i.quantity, 0);
   const shipping = subtotal > 2000 ? 0 : 99;

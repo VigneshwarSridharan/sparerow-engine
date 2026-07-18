@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { getPartImage } from '@/lib/partImages';
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 
 interface ProductQuickViewProps {
   product: Product | null;
@@ -22,7 +21,6 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addToRecentlyViewed } = useRecentlyViewed();
-  const { brands, models } = useStorefrontData();
   const [qty, setQty] = useState(1);
 
   useEffect(() => {
@@ -31,8 +29,6 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
   if (!product) return null;
 
-  const brand = brands.find(b => b.id === product.brandId);
-  const model = models.find(m => m.id === product.modelId);
   const previewSrc = product.image || getPartImage(product.partType);
 
   return (
@@ -64,7 +60,7 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{brand?.name} · {model?.name}</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">{product.brandName} · {product.modelName}</p>
             <h2 className="text-xl font-bold mt-1">{product.name}</h2>
             <p className="text-sm text-muted-foreground mt-1">{product.partType}</p>
             <div className="flex items-center gap-1.5 mt-2">
@@ -85,8 +81,8 @@ export function ProductQuickView({ product, isOpen, onClose }: ProductQuickViewP
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">SKU</span><span className="font-medium">{product.sku}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Brand</span><span className="font-medium">{brand?.name}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Model</span><span className="font-medium">{model?.name}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Brand</span><span className="font-medium">{product.brandName}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Model</span><span className="font-medium">{product.modelName}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Part Type</span><span className="font-medium">{product.partType}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Warranty</span><span className="font-medium">{product.warranty}</span></div>
           </div>

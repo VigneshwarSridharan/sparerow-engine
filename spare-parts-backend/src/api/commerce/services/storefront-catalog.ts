@@ -248,6 +248,10 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     categorySlug?: string;
     search?: string;
     inStockOnly?: boolean;
+    ids?: Array<string | number>;
+    skus?: string[];
+    limit?: number;
+    offset?: number;
   }) {
     const where: Record<string, unknown> = { isActive: true };
     if (filters?.brandSlug) {
@@ -287,6 +291,15 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     if (filters?.inStockOnly) {
       where.quantityOnHand = { $gt: 0 };
     }
+    if (filters?.ids?.length) {
+      where.id = { $in: filters.ids.map(Number).filter((n) => Number.isFinite(n)) };
+    }
+    if (filters?.skus?.length) {
+      where.sku = { $in: filters.skus };
+    }
+
+    const limit = filters?.limit ? Math.min(Math.max(Number(filters.limit) || 0, 1), 80) : undefined;
+    const offset = limit && filters?.offset ? Math.max(Number(filters.offset) || 0, 0) : undefined;
 
     const products = await strapi.db.query('api::product.product').findMany({
       where,
@@ -298,12 +311,49 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         variants: { populate: ['image'] },
       },
       orderBy: { name: 'asc' },
+      ...(limit ? { limit } : {}),
+      ...(offset ? { offset } : {}),
     });
     const serialized = products.map((row) => serializeProduct(strapi, row as unknown as Record<string, unknown>));
     if (filters?.inStockOnly) {
       return serialized.filter((product) => Number(product.availableToSell) > 0);
     }
     return serialized;
+  },
+
+  /** Product/model/brand/category counts via one lightweight scan (id + relation ids only) — never hydrates images/variants/description for the whole catalog. */
+  async listCatalogCounts() {
+    const rows = await strapi.db.query('api::product.product').findMany({
+      where: { isActive: true },
+      select: ['id'],
+      populate: {
+        partModel: { select: ['id'], populate: { brand: { select: ['id'] } } },
+        partCategory: { select: ['id'] },
+      },
+    });
+    const brandCounts = new Map<string, number>();
+    const modelCounts = new Map<string, number>();
+    const categoryCounts = new Map<string, number>();
+    for (const row of rows) {
+      const model = row.partModel as Record<string, unknown> | null | undefined;
+      const category = row.partCategory as Record<string, unknown> | null | undefined;
+      const brand = model?.brand as Record<string, unknown> | null | undefined;
+      if (model?.id) modelCounts.set(String(model.id), (modelCounts.get(String(model.id)) || 0) + 1);
+      if (brand?.id) brandCounts.set(String(brand.id), (brandCounts.get(String(brand.id)) || 0) + 1);
+      if (category?.id) categoryCounts.set(String(category.id), (categoryCounts.get(String(category.id)) || 0) + 1);
+    }
+    return { brandCounts, modelCounts, categoryCounts };
+  },
+
+  /** Single indexed max() lookup — for the price-range slider bound, never scans the full catalog. */
+  async getMaxPriceInMinor() {
+    const [top] = await strapi.db.query('api::product.product').findMany({
+      where: { isActive: true },
+      select: ['priceInMinor'],
+      orderBy: { priceInMinor: 'desc' },
+      limit: 1,
+    });
+    return Number(top?.priceInMinor ?? 0);
   },
 
   /** Ordered by createdAt, so no full-catalog heuristic scan is needed — directly indexable. */

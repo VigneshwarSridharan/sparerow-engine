@@ -32,7 +32,9 @@ export interface Product {
   id: string;
   name: string;
   brandId: string;
+  brandName: string;
   modelId: string;
+  modelName: string;
   partType: string;
   price: number;
   discountPercent: number;

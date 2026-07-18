@@ -16,6 +16,8 @@ import { ProductVariant } from '@/types';
 import {
   fetchProductReviews,
   createProductReview,
+  fetchStorefrontProducts,
+  fetchStorefrontProductsDetailed,
   type StorefrontReview,
 } from '@/lib/graphql/storefront';
 
@@ -161,7 +163,7 @@ function WriteReviewForm({ sku, onSuccess }: { sku: string; onSuccess: () => voi
 export default function ProductDetailsPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
-  const { products, brands, models, isLoading } = useStorefrontData();
+  const { brands, isLoading: isMetaLoading } = useStorefrontData();
   const { onQuickView } = useOutletContext<StorefrontOutletContext>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -171,10 +173,20 @@ export default function ProductDetailsPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
-  const product = useMemo(
-    () => products.find((item) => item.id === productId),
-    [products, productId]
-  );
+  const { data: productResults, isLoading: isProductLoading } = useQuery({
+    queryKey: ['product-detail', productId],
+    queryFn: () => fetchStorefrontProductsDetailed({ ids: [productId as string] }),
+    enabled: !!productId,
+  });
+  const product = productResults?.[0];
+  const isLoading = isMetaLoading || isProductLoading;
+
+  const relatedBrandSlug = product ? brands.find((item) => item.id === product.brandId)?.slug : undefined;
+  const { data: relatedCandidates = [] } = useQuery({
+    queryKey: ['product-related', relatedBrandSlug],
+    queryFn: () => fetchStorefrontProducts({ brandSlug: relatedBrandSlug, limit: 8 }),
+    enabled: !!relatedBrandSlug,
+  });
 
   const hasVariants = (product?.variants.length ?? 0) > 0;
 
@@ -222,12 +234,8 @@ export default function ProductDetailsPage() {
     return <div className="container py-20 text-center text-muted-foreground">Loading product details…</div>;
   }
 
-  const relatedProducts = products
-    .filter((item) => item.id !== product.id && (item.brandId === product.brandId || item.partType === product.partType))
-    .slice(0, 4);
+  const relatedProducts = relatedCandidates.filter((item) => item.id !== product.id).slice(0, 4);
 
-  const brand = brands.find((item) => item.id === product.brandId);
-  const model = models.find((item) => item.id === product.modelId);
   const fallbackImage = product.image || getPartImage(product.partType) || '/placeholder.svg';
   const galleryImages: string[] = product.images.length > 0 ? product.images : [fallbackImage];
   const activeImage = (selectedVariant?.imageUrl) || galleryImages[activeIndex] || fallbackImage;
@@ -302,7 +310,7 @@ export default function ProductDetailsPage() {
             {product.discountPercent > 0 && <Badge className="bg-destructive text-destructive-foreground">-{product.discountPercent}% OFF</Badge>}
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-          <p className="text-muted-foreground mt-2">{brand?.name} • {model?.name} • {product.partType}</p>
+          <p className="text-muted-foreground mt-2">{product.brandName} • {product.modelName} • {product.partType}</p>
 
           <div className="flex items-center gap-2 mt-4">
             <StarRow rating={Math.round(product.rating)} />

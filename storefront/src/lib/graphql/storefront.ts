@@ -3,48 +3,11 @@ import { graphqlRequest } from './client';
 import { resolveProductImageUrl, resolveBrandLogoUrl } from '@/lib/strapiAssets';
 import { getBrandLogo } from '@/lib/brandLogos';
 
-type BootstrapResponse = {
-  storefrontCatalogBootstrap: {
+type CatalogMetaResponse = {
+  storefrontCatalogMeta: {
     brands: Array<{ id: string; name: string; slug: string; productCount: number; logoUrl: string | null }>;
-    models: Array<{
-      id: string;
-      name: string;
-      slug: string;
-      modelNumber: string;
-      brandId: string;
-      productCount: number;
-    }>;
     categories: Array<{ id: string; name: string; slug: string; productCount: number }>;
-    products: Array<{
-      id: string;
-      sku: string;
-      name: string;
-      description?: string;
-      brandId: string;
-      modelId: string;
-      categoryName?: string;
-      uiPrice: number;
-      uiDiscountPrice: number;
-      uiDiscountPercent: number;
-      availableToSell: number;
-      uiWarranty: string;
-      uiRating: number;
-      uiReviewCount: number;
-      uiFeatured: boolean;
-      uiBestSeller: boolean;
-      uiNewArrival: boolean;
-      primaryImageUrl?: string | null;
-      imageUrls: string[];
-      variants: Array<{
-        id: string;
-        sku: string;
-        attributes: string;
-        priceInMinor: string;
-        quantityOnHand: number;
-        availableToSell: number;
-        imageUrl?: string | null;
-      }>;
-    }>;
+    partTypes: string[];
     promoCodes: Array<{
       code: string;
       discountPercent: number;
@@ -53,6 +16,7 @@ type BootstrapResponse = {
     }>;
     defaultTaxRatePercent: number;
     originStateCode: string;
+    maxPriceInMinor: string;
   };
 };
 
@@ -93,10 +57,8 @@ type VerifyRazorpayResponse = {
 export type StorefrontCreatedOrder = CreateOrderResponse['storefrontCreateOrder'];
 export type StorefrontCreatedOrderData = StorefrontCreatedOrder['order'];
 
-export type StorefrontBootstrapData = {
+export type StorefrontCatalogMetaData = {
   brands: Brand[];
-  models: Model[];
-  products: Product[];
   categories: Array<{ id: string; name: string; slug: string; productCount: number }>;
   partTypes: string[];
   promoCodes: Array<{
@@ -107,41 +69,19 @@ export type StorefrontBootstrapData = {
   }>;
   defaultTaxRatePercent: number;
   originStateCode: string;
+  maxPrice: number;
 };
 
-const STOREFRONT_BOOTSTRAP_QUERY = `
-  query StorefrontBootstrap {
-    storefrontCatalogBootstrap {
+const CATALOG_META_QUERY = `
+  query StorefrontCatalogMeta {
+    storefrontCatalogMeta {
       brands { id name slug productCount logoUrl }
-      models { id name slug modelNumber brandId productCount }
       categories { id name slug productCount }
-      products {
-        id
-        sku
-        name
-        description
-        brandId
-        modelId
-        categoryName
-        uiPrice
-        uiDiscountPrice
-        uiDiscountPercent
-        availableToSell
-        uiWarranty
-        uiRating
-        uiReviewCount
-        uiFeatured
-        uiBestSeller
-        uiNewArrival
-        primaryImageUrl
-        imageUrls
-        variants {
-          id sku attributes priceInMinor quantityOnHand availableToSell imageUrl
-        }
-      }
+      partTypes
       promoCodes { code discountPercent minOrderSubtotalInMinor maxDiscountInMinor }
       defaultTaxRatePercent
       originStateCode
+      maxPriceInMinor
     }
   }
 `;
@@ -192,7 +132,9 @@ type GraphQLProductNode = {
   name: string;
   description?: string;
   brandId: string;
+  brandName?: string;
   modelId: string;
+  modelName?: string;
   categoryName?: string;
   uiPrice: number;
   uiDiscountPrice: number;
@@ -222,7 +164,9 @@ function mapGraphQLProduct(product: GraphQLProductNode): Product {
     id: String(product.id),
     name: product.name,
     brandId: String(product.brandId),
+    brandName: product.brandName || '',
     modelId: String(product.modelId),
+    modelName: product.modelName || '',
     partType: product.categoryName || 'Spare Part',
     price: product.uiPrice,
     discountPercent: product.uiDiscountPercent,
@@ -258,11 +202,12 @@ function mapGraphQLProduct(product: GraphQLProductNode): Product {
   };
 }
 
-export async function fetchStorefrontBootstrap(token?: string): Promise<StorefrontBootstrapData> {
-  const data = await graphqlRequest<BootstrapResponse>(STOREFRONT_BOOTSTRAP_QUERY, {}, token);
-  const bootstrap = data.storefrontCatalogBootstrap;
+/** Brands/models/categories/promoCodes/tax config only — never loads the product catalog. Used globally by StorefrontDataContext. */
+export async function fetchStorefrontCatalogMeta(): Promise<StorefrontCatalogMetaData> {
+  const data = await graphqlRequest<CatalogMetaResponse>(CATALOG_META_QUERY);
+  const meta = data.storefrontCatalogMeta;
 
-  const brands: Brand[] = bootstrap.brands.map((brand) => ({
+  const brands: Brand[] = meta.brands.map((brand) => ({
     id: String(brand.id),
     name: brand.name,
     slug: brand.slug,
@@ -270,55 +215,39 @@ export async function fetchStorefrontBootstrap(token?: string): Promise<Storefro
     logo: resolveBrandLogoUrl(brand.logoUrl) ?? getBrandLogo(brand.slug) ?? '/placeholder.svg',
   }));
 
-  const models: Model[] = bootstrap.models.map((model) => ({
-    id: String(model.id),
-    name: model.name,
-    slug: model.slug,
-    modelNumber: model.modelNumber,
-    brandId: String(model.brandId),
-    productCount: model.productCount,
-    image: '/placeholder.svg',
-  }));
-
-  const products: Product[] = bootstrap.products.map(mapGraphQLProduct);
-
-  const partTypes = Array.from(new Set(products.map((product) => product.partType))).sort((a, b) =>
-    a.localeCompare(b)
-  );
-
   return {
     brands,
-    models,
-    products,
-    categories: bootstrap.categories.map((category) => ({
+    categories: meta.categories.map((category) => ({
       id: String(category.id),
       name: category.name,
       slug: category.slug,
       productCount: category.productCount,
     })),
-    partTypes,
-    promoCodes: bootstrap.promoCodes.map((promo) => ({
+    partTypes: [...meta.partTypes].sort((a, b) => a.localeCompare(b)),
+    promoCodes: meta.promoCodes.map((promo) => ({
       code: promo.code,
       discountPercent: promo.discountPercent,
       minOrderSubtotalInMinor: Number(promo.minOrderSubtotalInMinor || 0),
       maxDiscountInMinor:
         promo.maxDiscountInMinor != null ? Number(promo.maxDiscountInMinor) : undefined,
     })),
-    defaultTaxRatePercent: bootstrap.defaultTaxRatePercent ?? 0,
-    originStateCode: bootstrap.originStateCode ?? '',
+    defaultTaxRatePercent: meta.defaultTaxRatePercent ?? 0,
+    originStateCode: meta.originStateCode ?? '',
+    maxPrice: Math.round(Number(meta.maxPriceInMinor || 0) / 100),
   };
 }
 
-// ——— Lightweight, scoped queries for Homepage + Smart Part Finder ———
-// Unlike fetchStorefrontBootstrap above, these never load the full product catalog.
+// ——— Lightweight, scoped product queries ———
+// Unlike a full-catalog fetch, these are always filtered/limited and never load the whole product table.
 
 const PRODUCT_CARD_FIELDS = `
   id
   sku
   name
-  description
   brandId
+  brandName
   modelId
+  modelName
   categoryName
   uiPrice
   uiDiscountPrice
@@ -332,6 +261,14 @@ const PRODUCT_CARD_FIELDS = `
   uiNewArrival
   primaryImageUrl
   imageUrls
+`;
+
+const PRODUCT_DETAIL_FIELDS = `
+  ${PRODUCT_CARD_FIELDS}
+  description
+  variants {
+    id sku attributes priceInMinor quantityOnHand availableToSell imageUrl
+  }
 `;
 
 const HOME_FILTERS_QUERY = `
@@ -455,6 +392,10 @@ export type StorefrontProductFilter = {
   categorySlug?: string;
   search?: string;
   inStockOnly?: boolean;
+  ids?: string[];
+  skus?: string[];
+  limit?: number;
+  offset?: number;
 };
 
 type ProductsByFilterResponse = { storefrontProducts: GraphQLProductNode[] };
@@ -462,6 +403,23 @@ type ProductsByFilterResponse = { storefrontProducts: GraphQLProductNode[] };
 export async function fetchStorefrontProducts(filter: StorefrontProductFilter): Promise<Product[]> {
   const data = await graphqlRequest<ProductsByFilterResponse, { filter: StorefrontProductFilter }>(
     PRODUCTS_BY_FILTER_QUERY,
+    { filter }
+  );
+  return data.storefrontProducts.map(mapGraphQLProduct);
+}
+
+const PRODUCTS_BY_FILTER_DETAILED_QUERY = `
+  query StorefrontProductsByFilterDetailed($filter: StorefrontCatalogFilterInput) {
+    storefrontProducts(filter: $filter) {
+      ${PRODUCT_DETAIL_FIELDS}
+    }
+  }
+`;
+
+/** Same as fetchStorefrontProducts but includes description + variants — used for single-product detail lookups. */
+export async function fetchStorefrontProductsDetailed(filter: StorefrontProductFilter): Promise<Product[]> {
+  const data = await graphqlRequest<ProductsByFilterResponse, { filter: StorefrontProductFilter }>(
+    PRODUCTS_BY_FILTER_DETAILED_QUERY,
     { filter }
   );
   return data.storefrontProducts.map(mapGraphQLProduct);

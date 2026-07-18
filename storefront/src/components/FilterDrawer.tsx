@@ -1,4 +1,5 @@
 import { SlidersHorizontal } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
@@ -6,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { FilterState } from '@/types';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
+import { fetchModelsByBrand } from '@/lib/graphql/storefront';
 
 interface FilterDrawerProps {
   filters: FilterState;
@@ -16,8 +18,15 @@ interface FilterDrawerProps {
 }
 
 export function FilterDrawer({ filters, onFiltersChange, isOpen, onClose, maxPrice }: FilterDrawerProps) {
-  const { brands, models, partTypes } = useStorefrontData();
-  const filteredModels = filters.brandId ? models.filter(m => m.brandId === filters.brandId) : models;
+  const { brands, partTypes } = useStorefrontData();
+  const brandSlug = filters.brandId ? brands.find((b) => b.id === filters.brandId)?.slug : undefined;
+  // Scoped to the selected brand's (small) model list — shares its cache with ProductListingPage's
+  // own lookup via the same query key, so this never re-fetches or loads all models globally.
+  const { data: filteredModels = [] } = useQuery({
+    queryKey: ['models-by-brand', brandSlug],
+    queryFn: () => fetchModelsByBrand(brandSlug as string),
+    enabled: !!brandSlug,
+  });
 
   const content = (
     <div className="space-y-6">
