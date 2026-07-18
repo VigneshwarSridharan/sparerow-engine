@@ -4,7 +4,10 @@ import { getPartImage } from '@/lib/partImages';
 export function getStrapiOrigin(): string {
   const endpoint = import.meta.env.VITE_STOREFRONT_GRAPHQL_ENDPOINT ?? 'http://localhost:1337/graphql';
   try {
-    return new URL(endpoint).origin;
+    // Base handles both absolute endpoints (base ignored) and relative ones like
+    // `/graphql` (same-origin nginx proxying in prod) — `new URL()` throws on a
+    // relative string with no base.
+    return new URL(endpoint, window.location.origin).origin;
   } catch {
     return 'http://localhost:1337';
   }
