@@ -12,7 +12,10 @@ import { orderDeliveredHtml } from '../../../lib/email-templates/order-delivered
 
 export default ({ strapi }: { strapi: Core.Strapi }) => ({
   async bookShipmentForOrder(orderId: number) {
-    const order = await strapi.db.query('api::order.order').findOne({ where: { id: orderId } });
+    const order = await strapi.db.query('api::order.order').findOne({
+      where: { id: orderId },
+      populate: ['lineItems'],
+    });
     if (!order) return;
 
     const shipments = await strapi.db.query('api::shipment.shipment').findMany({
@@ -30,11 +33,19 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       city: string; postalCode: string; state: string;
     }>('shipping.origin');
 
-    const totalInMinor = Number((order as Record<string, unknown>).totalInMinor) || undefined;
+    const subtotalInMinor = Number((order as Record<string, unknown>).subtotalInMinor) || undefined;
+    const lineItems = ((order as Record<string, unknown>).lineItems as Record<string, unknown>[]) || [];
+    const items = lineItems.map((li) => ({
+      name: String(li.nameSnapshot || ''),
+      sku: String(li.variantSkuSnapshot || li.skuSnapshot || ''),
+      units: Number(li.quantity) || 1,
+      sellingPriceInMinor: Number(li.unitPriceInMinor) || 0,
+    }));
     const result = await carrier.bookShipment({
       orderRef: String(orderId),
       weightGrams,
-      orderTotalInMinor: totalInMinor,
+      orderSubtotalInMinor: subtotalInMinor,
+      items,
       pickup: {
         name: origin.name,
         phone: origin.phone,

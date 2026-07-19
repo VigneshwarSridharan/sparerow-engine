@@ -5,7 +5,13 @@ export type CarrierCode = 'MOCK' | 'SHIPROCKET' | 'DELHIVERY';
 export interface BookShipmentInput {
   orderRef: string;
   weightGrams: number;
-  orderTotalInMinor?: number;
+  orderSubtotalInMinor?: number;
+  items: {
+    name: string;
+    sku: string;
+    units: number;
+    sellingPriceInMinor: number;
+  }[];
   pickup: {
     name: string;
     phone: string;

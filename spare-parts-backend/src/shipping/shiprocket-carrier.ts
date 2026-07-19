@@ -45,15 +45,21 @@ export class ShiprocketCarrier implements ShippingCarrier {
     const nameParts = input.drop.name.trim().split(/\s+/);
     const firstName = nameParts[0] || input.drop.name;
     const lastName = nameParts.slice(1).join(' ') || '.';
+    // Shiprocket's adhoc order-create endpoint is keyed by order_id: resubmitting the
+    // same order_id returns the existing record as-is rather than creating a fresh one,
+    // so a once-canceled order stays permanently canceled under that id. Suffixing with
+    // the current timestamp guarantees every booking attempt (including retries) gets a
+    // fresh Shiprocket order rather than colliding with a prior failed attempt.
+    const shiprocketOrderId = `${input.orderRef}-${Date.now()}`;
     const res = await withTransientRetry(() =>
       http.post(
         'https://apiv2.shiprocket.in/v1/external/orders/create/adhoc',
         {
-          order_id: input.orderRef,
+          order_id: shiprocketOrderId,
           order_date: orderDate,
           pickup_location: pickupLocation,
           payment_method: 'Prepaid',
-          sub_total: input.orderTotalInMinor != null ? Math.max(1, Math.round(input.orderTotalInMinor / 100)) : 1,
+          sub_total: input.orderSubtotalInMinor != null ? Math.max(1, Math.round(input.orderSubtotalInMinor / 100)) : 1,
           billing_customer_name: firstName,
           billing_last_name: lastName,
           billing_address: input.drop.line1,
@@ -65,7 +71,14 @@ export class ShiprocketCarrier implements ShippingCarrier {
           billing_email: 'noreply@example.com',
           billing_phone: input.drop.phone,
           shipping_is_billing: true,
-          order_items: [{ name: 'Spare parts', sku: input.orderRef, units: 1, selling_price: input.orderTotalInMinor != null ? Math.max(1, Math.round(input.orderTotalInMinor / 100)) : 1 }],
+          order_items: input.items.length > 0
+            ? input.items.map((it) => ({
+                name: it.name,
+                sku: it.sku,
+                units: it.units,
+                selling_price: Math.max(1, Math.round(it.sellingPriceInMinor / 100)),
+              }))
+            : [{ name: 'Spare parts', sku: input.orderRef, units: 1, selling_price: input.orderSubtotalInMinor != null ? Math.max(1, Math.round(input.orderSubtotalInMinor / 100)) : 1 }],
           weight: Math.max(0.05, input.weightGrams / 1000),
           length: 10,
           breadth: 10,
@@ -75,6 +88,12 @@ export class ShiprocketCarrier implements ShippingCarrier {
       )
     );
     const shipmentId = res.data?.shipment_id ?? res.data?.payload?.shipment_id;
+    const remoteStatus = String(res.data?.status || '').toUpperCase();
+    if (remoteStatus === 'CANCELED' || remoteStatus === 'CANCELLED') {
+      throw new Error(
+        `SHIPROCKET_ORDER_CANCELED: Shiprocket created order ${input.orderRef} (shipment_id=${shipmentId ?? 'unknown'}) but canceled it immediately — check seller onboarding/KYC and pickup address verification in the Shiprocket dashboard.`
+      );
+    }
     return {
       carrierShipmentRef: shipmentId != null ? String(shipmentId) : undefined,
       trackingNumber: res.data?.awb_code ? String(res.data.awb_code) : undefined,
