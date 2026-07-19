@@ -1,23 +1,39 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CustomerInfo } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CheckCircle } from 'lucide-react';
 import {
+  createStorefrontAddress,
   createStorefrontOrder,
+  fetchStorefrontAddresses,
   fetchStorefrontProducts,
   prepareStorefrontRazorpayPayment,
   verifyStorefrontRazorpayPayment,
+  type StorefrontAddress,
 } from '@/lib/graphql/storefront';
 import { loadRazorpayScript } from '@/lib/loadRazorpay';
+import { lookupIndianPincode } from '@/lib/pincodeLookup';
 import { toast } from '@/hooks/use-toast';
 import { useStorefrontData } from '@/contexts/StorefrontDataContext';
 import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
+
+const emptyNewAddress: Omit<StorefrontAddress, 'id'> = {
+  customerName: '',
+  line1: '',
+  line2: null,
+  city: '',
+  state: '',
+  postalCode: '',
+  countryCode: 'IN',
+  phone: '',
+};
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -34,6 +50,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const { items, couponCode, couponDiscount, clearCart } = useCart();
   const { defaultTaxRatePercent, originStateCode } = useStorefrontData();
   const { token: customerToken } = useCustomerAuth();
+  const queryClient = useQueryClient();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderIdDisplay, setOrderIdDisplay] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +66,38 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     state: '',
     pincode: '',
   });
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [newAddressForm, setNewAddressForm] = useState<Omit<StorefrontAddress, 'id'>>(emptyNewAddress);
+
+  const addressesQuery = useQuery({
+    queryKey: ['storefront-addresses', customerToken],
+    queryFn: () => fetchStorefrontAddresses(customerToken!),
+    enabled: !!customerToken,
+  });
+  const savedAddresses = addressesQuery.data || [];
+  const effectiveMode = selectedAddressId ?? (savedAddresses.length > 0 ? savedAddresses[0].id : 'new');
+
+  const handleGuestPincodeChange = async (value: string) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    setForm((prev) => ({ ...prev, pincode: cleaned }));
+    if (cleaned.length === 6) {
+      const result = await lookupIndianPincode(cleaned);
+      if (result) {
+        setForm((prev) => ({ ...prev, pincode: cleaned, city: result.city, state: result.state }));
+      }
+    }
+  };
+
+  const handleNewAddressPincodeChange = async (value: string) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    setNewAddressForm((prev) => ({ ...prev, postalCode: cleaned }));
+    if (cleaned.length === 6) {
+      const result = await lookupIndianPincode(cleaned);
+      if (result) {
+        setNewAddressForm((prev) => ({ ...prev, postalCode: cleaned, city: result.city, state: result.state }));
+      }
+    }
+  };
 
   const cartSkus = useMemo(() => Array.from(new Set(items.map((item) => item.product.sku))), [items]);
   const { data: validCartProducts } = useQuery({
@@ -68,7 +117,12 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
   const estimatedTax = defaultTaxRatePercent > 0 ? Math.round((subtotal - discount) * defaultTaxRatePercent / 100) : 0;
   const total = subtotal - discount + shipping + estimatedTax;
 
-  const isIntrastate = originStateCode && form.state.trim().toUpperCase() === originStateCode.toUpperCase();
+  const shippingState = !customerToken
+    ? form.state
+    : effectiveMode === 'new'
+      ? newAddressForm.state
+      : savedAddresses.find((a) => a.id === effectiveMode)?.state ?? '';
+  const isIntrastate = originStateCode && shippingState.trim().toUpperCase() === originStateCode.toUpperCase();
   const gstLabel = estimatedTax > 0
     ? isIntrastate
       ? `CGST (${defaultTaxRatePercent / 2}%) + SGST (${defaultTaxRatePercent / 2}%)`
@@ -88,7 +142,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
       key: prep.keyId,
       amount: prep.amount,
       currency: prep.currency,
-      name: 'SpareHub',
+      name: 'Sparerow',
       description: `Order ${session.displayOrderId}`,
       order_id: prep.razorpayOrderId,
       prefill: {
@@ -150,21 +204,44 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
     }
     setSubmitting(true);
     try {
+      let shippingAddressId: string | undefined;
+      let guestShipping: {
+        customerName: string;
+        line1: string;
+        line2?: string;
+        city: string;
+        state: string;
+        postalCode: string;
+        countryCode?: string;
+        phone: string;
+      } | undefined;
+
+      if (customerToken && effectiveMode === 'new') {
+        const saved = await createStorefrontAddress(customerToken, newAddressForm);
+        void queryClient.invalidateQueries({ queryKey: ['storefront-addresses'] });
+        shippingAddressId = saved.id;
+      } else if (customerToken) {
+        shippingAddressId = effectiveMode;
+      } else {
+        guestShipping = {
+          customerName: `${form.firstName} ${form.lastName}`.trim(),
+          line1: form.address,
+          city: form.city,
+          state: form.state,
+          postalCode: form.pincode,
+          phone: form.phone,
+          countryCode: 'IN',
+        };
+      }
+
       const created = await createStorefrontOrder(
         {
           lines: validItems.map((item) => ({ sku: item.product.sku, quantity: item.quantity, variantSku: item.variantSku })),
           contactPhone: form.phone,
           contactEmail: form.email,
           promoCode: couponCode || undefined,
-          guestShipping: {
-            customerName: `${form.firstName} ${form.lastName}`.trim(),
-            line1: form.address,
-            city: form.city,
-            state: form.state,
-            postalCode: form.pincode,
-            phone: form.phone,
-            countryCode: 'IN',
-          },
+          shippingAddressId,
+          guestShipping,
         },
         customerToken ?? undefined
       );
@@ -210,6 +287,8 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
       state: '',
       pincode: '',
     });
+    setSelectedAddressId(null);
+    setNewAddressForm(emptyNewAddress);
     onClose();
   };
 
@@ -287,46 +366,159 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
 
               <div>
                 <h3 className="font-semibold mb-3">Shipping Address</h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="addr">Address *</Label>
-                    <Input
-                      id="addr"
-                      required
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    />
+                {!customerToken ? (
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="addr">Address *</Label>
+                      <Input
+                        id="addr"
+                        required
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label htmlFor="pin">Pincode *</Label>
+                        <Input
+                          id="pin"
+                          required
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={form.pincode}
+                          onChange={(e) => void handleGuestPincodeChange(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="city">City *</Label>
+                        <Input
+                          id="city"
+                          required
+                          value={form.city}
+                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="state">State *</Label>
+                        <Input
+                          id="state"
+                          required
+                          value={form.state}
+                          onChange={(e) => setForm({ ...form, state: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label htmlFor="city">City *</Label>
-                      <Input
-                        id="city"
-                        required
-                        value={form.city}
-                        onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="state">State *</Label>
-                      <Input
-                        id="state"
-                        required
-                        value={form.state}
-                        onChange={(e) => setForm({ ...form, state: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="pin">Pincode *</Label>
-                      <Input
-                        id="pin"
-                        required
-                        value={form.pincode}
-                        onChange={(e) => setForm({ ...form, pincode: e.target.value })}
-                      />
-                    </div>
+                ) : (
+                  <div className="space-y-3">
+                    {addressesQuery.isLoading && (
+                      <p className="text-sm text-muted-foreground">Loading your saved addresses…</p>
+                    )}
+                    {savedAddresses.length > 0 && (
+                      <RadioGroup value={effectiveMode} onValueChange={setSelectedAddressId}>
+                        {savedAddresses.map((a) => (
+                          <Label
+                            key={a.id}
+                            htmlFor={`addr-${a.id}`}
+                            className="flex items-start gap-3 rounded-md border p-3 text-sm font-normal cursor-pointer"
+                          >
+                            <RadioGroupItem value={a.id} id={`addr-${a.id}`} className="mt-1" />
+                            <span>
+                              <span className="block font-medium">{a.customerName}</span>
+                              <span className="block text-muted-foreground">
+                                {a.line1}
+                                {a.line2 ? `, ${a.line2}` : ''}
+                              </span>
+                              <span className="block text-muted-foreground">
+                                {a.postalCode}, {a.city}, {a.state}
+                              </span>
+                              <span className="block text-muted-foreground">{a.phone}</span>
+                            </span>
+                          </Label>
+                        ))}
+                        <Label
+                          htmlFor="addr-new"
+                          className="flex items-center gap-3 rounded-md border p-3 text-sm font-normal cursor-pointer"
+                        >
+                          <RadioGroupItem value="new" id="addr-new" />
+                          Add a new address
+                        </Label>
+                      </RadioGroup>
+                    )}
+
+                    {effectiveMode === 'new' && (
+                      <div className="space-y-3 rounded-md border p-3">
+                        <div>
+                          <Label htmlFor="na-name">Full name *</Label>
+                          <Input
+                            id="na-name"
+                            required
+                            value={newAddressForm.customerName}
+                            onChange={(e) => setNewAddressForm({ ...newAddressForm, customerName: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="na-line1">Address line 1 *</Label>
+                          <Input
+                            id="na-line1"
+                            required
+                            value={newAddressForm.line1}
+                            onChange={(e) => setNewAddressForm({ ...newAddressForm, line1: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="na-line2">Address line 2 (optional)</Label>
+                          <Input
+                            id="na-line2"
+                            value={newAddressForm.line2 ?? ''}
+                            onChange={(e) => setNewAddressForm({ ...newAddressForm, line2: e.target.value || null })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label htmlFor="na-pin">Pincode *</Label>
+                            <Input
+                              id="na-pin"
+                              required
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={newAddressForm.postalCode}
+                              onChange={(e) => void handleNewAddressPincodeChange(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="na-city">City *</Label>
+                            <Input
+                              id="na-city"
+                              required
+                              value={newAddressForm.city}
+                              onChange={(e) => setNewAddressForm({ ...newAddressForm, city: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="na-state">State *</Label>
+                            <Input
+                              id="na-state"
+                              required
+                              value={newAddressForm.state}
+                              onChange={(e) => setNewAddressForm({ ...newAddressForm, state: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="na-phone">Phone *</Label>
+                          <Input
+                            id="na-phone"
+                            required
+                            inputMode="numeric"
+                            value={newAddressForm.phone}
+                            onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
 
               <Separator />

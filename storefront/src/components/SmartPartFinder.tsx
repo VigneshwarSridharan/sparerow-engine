@@ -114,7 +114,7 @@ export function SmartPartFinder({
   };
 
   return (
-    <section className="py-16 bg-gradient-to-b from-muted/40 to-background">
+    <section className="py-16 min-h-screen bg-gradient-to-b from-muted/40 to-background">
       <div className="container">
         {/* Header */}
         <div className="text-center mb-10">
@@ -168,7 +168,7 @@ export function SmartPartFinder({
           ref={step1Ref}
           className="scroll-mt-16 bg-card rounded-2xl border shadow-sm p-6 mb-4"
         >
-          <div className="grid grid-cols-6 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {brands.map((brand) => (
               <button
                 key={brand.id}

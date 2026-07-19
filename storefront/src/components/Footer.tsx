@@ -8,7 +8,7 @@ export function Footer() {
       <div className="container py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg font-bold mb-4">SpareHub</h3>
+            <h3 className="text-lg font-bold mb-4">Sparerow</h3>
             <p className="text-sm opacity-70">Your trusted marketplace for genuine mobile spare parts. Quality parts at the best prices with fast delivery.</p>
           </div>
           <div>
@@ -32,14 +32,14 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-3 text-sm">Contact</h4>
             <ul className="space-y-2 text-sm opacity-70">
-              <li>support@sparehub.in</li>
+              <li>support@sparerow.in</li>
               <li>+91 98765 43210</li>
               <li>Mon-Sat: 9AM - 7PM</li>
             </ul>
           </div>
         </div>
         <div className="border-t border-border mt-8 pt-8 text-center text-sm opacity-50 flex flex-wrap justify-center gap-4">
-          <span>© 2026 SpareHub. All rights reserved.</span>
+          <span>© 2026 Sparerow. All rights reserved.</span>
           <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/terms')}>Terms &amp; Conditions</button>
           <button className="hover:opacity-100 transition-opacity underline" onClick={() => navigate('/privacy')}>Privacy Policy</button>
         </div>

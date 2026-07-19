@@ -44,7 +44,7 @@ export function Header({ onSearchOpen, onCartOpen, onNavigate }: HeaderProps) {
               SH
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-semibold leading-none">SpareHub</p>
+              <p className="text-sm font-semibold leading-none">Sparerow</p>
               <p className="text-xs text-muted-foreground">Mobile Parts Store</p>
             </div>
           </button>

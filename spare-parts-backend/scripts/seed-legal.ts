@@ -11,10 +11,10 @@ const PRIVACY_SLUG = 'privacy-policy';
 
 const TERMS_BODY = `
 <h2>1. Introduction</h2>
-<p>These Terms &amp; Conditions ("Terms") govern your use of SpareHub ("we", "our", "us") and any purchase made through our website. By placing an order you agree to these Terms in full.</p>
+<p>These Terms &amp; Conditions ("Terms") govern your use of Sparerow ("we", "our", "us") and any purchase made through our website. By placing an order you agree to these Terms in full.</p>
 
 <h2>2. Eligibility</h2>
-<p>You must be at least 18 years old and a resident of India to purchase from SpareHub. By using our services you represent that you meet these requirements.</p>
+<p>You must be at least 18 years old and a resident of India to purchase from Sparerow. By using our services you represent that you meet these requirements.</p>
 
 <h2>3. Products &amp; Pricing</h2>
 <p>All prices are listed in Indian Rupees (INR) and are inclusive of applicable taxes unless stated otherwise. We reserve the right to update prices at any time without prior notice. The price displayed at the time of checkout is the final price for that transaction.</p>
@@ -23,7 +23,7 @@ const TERMS_BODY = `
 <p>An order placed on our website constitutes an offer to purchase. We reserve the right to accept or reject any order. An order is confirmed only after you receive an order-confirmation email and successful payment authorisation via Razorpay.</p>
 
 <h2>5. Payment</h2>
-<p>Payments are processed securely through <strong>Razorpay</strong>, a PCI-DSS compliant payment gateway. We accept UPI, credit/debit cards, net banking, and popular wallets. SpareHub does not store your card or bank account details on our servers.</p>
+<p>Payments are processed securely through <strong>Razorpay</strong>, a PCI-DSS compliant payment gateway. We accept UPI, credit/debit cards, net banking, and popular wallets. Sparerow does not store your card or bank account details on our servers.</p>
 <p>In the event of a payment failure, any amount debited will be automatically refunded to the original payment source within 5–7 business days by Razorpay. If you do not receive the refund, please contact us with your Razorpay payment ID.</p>
 
 <h2>6. Shipping &amp; Delivery</h2>
@@ -36,10 +36,10 @@ const TERMS_BODY = `
 <p>All products carry a <strong>90-day warranty</strong> against manufacturing defects. This warranty does not cover physical damage, water damage, or issues arising from improper installation. Warranty claims must be submitted with proof of purchase and order ID.</p>
 
 <h2>9. Intellectual Property</h2>
-<p>All content on SpareHub, including logos, product descriptions, and images, is the property of SpareHub or its content suppliers and is protected by Indian intellectual property laws. You may not reproduce or distribute any content without prior written consent.</p>
+<p>All content on Sparerow, including logos, product descriptions, and images, is the property of Sparerow or its content suppliers and is protected by Indian intellectual property laws. You may not reproduce or distribute any content without prior written consent.</p>
 
 <h2>10. Limitation of Liability</h2>
-<p>SpareHub's total liability for any claim arising from a purchase shall not exceed the amount paid for the specific product. We are not liable for indirect, incidental, or consequential damages.</p>
+<p>Sparerow's total liability for any claim arising from a purchase shall not exceed the amount paid for the specific product. We are not liable for indirect, incidental, or consequential damages.</p>
 
 <h2>11. Governing Law</h2>
 <p>These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts of Bengaluru, Karnataka.</p>
@@ -48,13 +48,13 @@ const TERMS_BODY = `
 <p>We may update these Terms at any time. Continued use of our platform after changes constitutes acceptance of the updated Terms.</p>
 
 <h2>13. Contact</h2>
-<p>For any questions regarding these Terms, write to us at <a href="mailto:support@sparehub.in">support@sparehub.in</a> or call +91 98765 43210 (Mon–Sat, 9 AM – 7 PM).</p>
+<p>For any questions regarding these Terms, write to us at <a href="mailto:support@sparerow.in">support@sparerow.in</a> or call +91 98765 43210 (Mon–Sat, 9 AM – 7 PM).</p>
 <p><em>Last updated: May 2026</em></p>
 `.trim();
 
 const PRIVACY_BODY = `
 <h2>1. Overview</h2>
-<p>SpareHub ("we", "our") is committed to protecting your personal information. This Privacy Policy explains what data we collect, how we use it, and your rights regarding your data, in compliance with the Information Technology Act, 2000 and applicable Indian data protection regulations.</p>
+<p>Sparerow ("we", "our") is committed to protecting your personal information. This Privacy Policy explains what data we collect, how we use it, and your rights regarding your data, in compliance with the Information Technology Act, 2000 and applicable Indian data protection regulations.</p>
 
 <h2>2. Information We Collect</h2>
 <ul>
@@ -76,7 +76,7 @@ const PRIVACY_BODY = `
 </ul>
 
 <h2>4. Payment Data &amp; Razorpay</h2>
-<p>All payment transactions on SpareHub are processed by <strong>Razorpay Software Private Limited</strong>, a PCI-DSS Level 1 certified payment gateway. When you make a payment, you are submitting your financial information directly to Razorpay. We receive only a payment confirmation and a Razorpay transaction ID. We do not have access to your card number, CVV, or bank account credentials. Please refer to <a href="https://razorpay.com/privacy/" target="_blank" rel="noopener noreferrer">Razorpay's Privacy Policy</a> for details on how they handle your payment data.</p>
+<p>All payment transactions on Sparerow are processed by <strong>Razorpay Software Private Limited</strong>, a PCI-DSS Level 1 certified payment gateway. When you make a payment, you are submitting your financial information directly to Razorpay. We receive only a payment confirmation and a Razorpay transaction ID. We do not have access to your card number, CVV, or bank account credentials. Please refer to <a href="https://razorpay.com/privacy/" target="_blank" rel="noopener noreferrer">Razorpay's Privacy Policy</a> for details on how they handle your payment data.</p>
 
 <h2>5. Cookies</h2>
 <p>We use essential cookies to maintain your session and shopping cart. We may also use analytics cookies (e.g., Google Analytics) to understand usage patterns. You can disable cookies in your browser settings, but this may affect site functionality.</p>
@@ -103,7 +103,7 @@ const PRIVACY_BODY = `
   <li>Request deletion of your account and associated data (subject to legal retention requirements).</li>
   <li>Opt out of marketing communications at any time.</li>
 </ul>
-<p>To exercise these rights, email us at <a href="mailto:privacy@sparehub.in">privacy@sparehub.in</a>.</p>
+<p>To exercise these rights, email us at <a href="mailto:privacy@sparerow.in">privacy@sparerow.in</a>.</p>
 
 <h2>10. Children's Privacy</h2>
 <p>Our services are not directed to individuals under 18. We do not knowingly collect data from minors.</p>
@@ -112,7 +112,7 @@ const PRIVACY_BODY = `
 <p>We may update this Privacy Policy periodically. We will notify you of material changes by email or a prominent notice on our website.</p>
 
 <h2>12. Contact</h2>
-<p>For privacy-related queries, contact our Data Protection Officer at <a href="mailto:privacy@sparehub.in">privacy@sparehub.in</a> or write to: SpareHub, Industrial Area Phase 1, Bengaluru – 560001, Karnataka, India.</p>
+<p>For privacy-related queries, contact our Data Protection Officer at <a href="mailto:privacy@sparerow.in">privacy@sparerow.in</a> or write to: Sparerow, Industrial Area Phase 1, Bengaluru – 560001, Karnataka, India.</p>
 <p><em>Last updated: May 2026</em></p>
 `.trim();
 
@@ -132,7 +132,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
   {
     sortOrder: 2,
     question: 'Is my payment information secure?',
-    answer: `<p>Yes. SpareHub does not store your card number, CVV, or bank account details on our servers. All payment data is handled exclusively by <strong>Razorpay</strong>, which is certified to the highest industry security standard (PCI-DSS Level 1). Your financial information is encrypted end-to-end and never accessible to us.</p>`,
+    answer: `<p>Yes. Sparerow does not store your card number, CVV, or bank account details on our servers. All payment data is handled exclusively by <strong>Razorpay</strong>, which is certified to the highest industry security standard (PCI-DSS Level 1). Your financial information is encrypted end-to-end and never accessible to us.</p>`,
   },
   {
     sortOrder: 3,
@@ -141,7 +141,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
 <ol>
   <li>Wait 10–15 minutes — most such deductions are automatically reversed by your bank or Razorpay.</li>
   <li>Check your bank statement. If a deduction appears, note the <strong>Razorpay Payment ID</strong> (starts with "pay_") from your SMS or email.</li>
-  <li>Email us at <a href="mailto:support@sparehub.in">support@sparehub.in</a> with your Payment ID and order details.</li>
+  <li>Email us at <a href="mailto:support@sparerow.in">support@sparerow.in</a> with your Payment ID and order details.</li>
   <li>Refunds for failed payments are typically credited within <strong>5–7 business days</strong>.</li>
 </ol>`,
   },
@@ -166,7 +166,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
     question: 'How do I track my order?',
     answer: `<p>Once your order is dispatched, you will receive a tracking number via SMS and email. You can also:</p>
 <ul>
-  <li>Log in to your SpareHub account → <strong>My Orders</strong> to view real-time shipment status.</li>
+  <li>Log in to your Sparerow account → <strong>My Orders</strong> to view real-time shipment status.</li>
   <li>Use the tracking number directly on the carrier's website (Shiprocket, Delhivery, or the assigned courier).</li>
 </ul>`,
   },
@@ -175,7 +175,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
     question: 'What is the return policy?',
     answer: `<p>We offer a <strong>7-day return window</strong> from the date of delivery for unused, unopened products in original packaging. To initiate a return:</p>
 <ol>
-  <li>Email <a href="mailto:support@sparehub.in">support@sparehub.in</a> with your order ID and reason for return.</li>
+  <li>Email <a href="mailto:support@sparerow.in">support@sparerow.in</a> with your order ID and reason for return.</li>
   <li>Our team will arrange a reverse pickup within 2 business days.</li>
   <li>Once the item is received and inspected, a refund is issued within 7–10 business days to the original payment source.</li>
 </ol>
@@ -184,7 +184,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
   {
     sortOrder: 8,
     question: 'What warranty do products carry?',
-    answer: `<p>All spare parts sold on SpareHub come with a <strong>90-day warranty</strong> against manufacturing defects. The warranty covers:</p>
+    answer: `<p>All spare parts sold on Sparerow come with a <strong>90-day warranty</strong> against manufacturing defects. The warranty covers:</p>
 <ul>
   <li>Component failure under normal use conditions.</li>
   <li>Parts that stop functioning without physical damage.</li>
@@ -202,7 +202,7 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
     question: 'Can I cancel my order?',
     answer: `<p>Orders can be cancelled <strong>before they are dispatched</strong>. To cancel:</p>
 <ol>
-  <li>Email <a href="mailto:support@sparehub.in">support@sparehub.in</a> with your order ID as soon as possible.</li>
+  <li>Email <a href="mailto:support@sparerow.in">support@sparerow.in</a> with your order ID as soon as possible.</li>
   <li>If the order has not yet shipped, we will cancel it and process a full refund within 5–7 business days.</li>
 </ol>
 <p>Once an order has been dispatched, cancellation is not possible — you will need to initiate a return after delivery.</p>`,
@@ -213,22 +213,22 @@ const FAQS: { question: string; answer: string; sortOrder: number }[] = [
     answer: `<p>Every product listing displays the compatible brands and models. If you are unsure, please:</p>
 <ul>
   <li>Check the product description for compatibility details.</li>
-  <li>Contact our support team at <a href="mailto:support@sparehub.in">support@sparehub.in</a> or call +91 98765 43210 with your device model number — we'll confirm compatibility before you order.</li>
+  <li>Contact our support team at <a href="mailto:support@sparerow.in">support@sparerow.in</a> or call +91 98765 43210 with your device model number — we'll confirm compatibility before you order.</li>
 </ul>`,
   },
   {
     sortOrder: 11,
     question: 'Are the spare parts genuine / original?',
-    answer: `<p>Yes. SpareHub sources parts from verified distributors and authorised suppliers. Each product listing specifies whether the part is OEM (Original Equipment Manufacturer), OEM-compatible, or aftermarket. We do not sell counterfeit parts.</p>`,
+    answer: `<p>Yes. Sparerow sources parts from verified distributors and authorised suppliers. Each product listing specifies whether the part is OEM (Original Equipment Manufacturer), OEM-compatible, or aftermarket. We do not sell counterfeit parts.</p>`,
   },
   {
     sortOrder: 12,
     question: 'I did not receive an order confirmation email. What should I do?',
     answer: `<p>Please check your spam / junk folder first. If you still cannot find it:</p>
 <ol>
-  <li>Log in to your SpareHub account → <strong>My Orders</strong> to confirm the order status.</li>
+  <li>Log in to your Sparerow account → <strong>My Orders</strong> to confirm the order status.</li>
   <li>Verify that your payment was successful via your Razorpay confirmation SMS or bank statement.</li>
-  <li>If the order appears in your account but no email was received, contact us at <a href="mailto:support@sparehub.in">support@sparehub.in</a> and we'll resend the confirmation.</li>
+  <li>If the order appears in your account but no email was received, contact us at <a href="mailto:support@sparerow.in">support@sparerow.in</a> and we'll resend the confirmation.</li>
 </ol>`,
   },
 ];

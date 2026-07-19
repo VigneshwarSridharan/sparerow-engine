@@ -431,7 +431,8 @@ export async function createStorefrontOrder(
     contactPhone: string;
     contactEmail: string;
     promoCode?: string;
-    guestShipping: {
+    shippingAddressId?: string;
+    guestShipping?: {
       customerName: string;
       line1: string;
       line2?: string;
@@ -474,7 +475,7 @@ export async function verifyStorefrontRazorpayPayment(input: {
 
 // ——— Customer account (GraphQL) ———
 
-const CUSTOMER_TOKEN_KEY = 'sparehub_customer_token';
+const CUSTOMER_TOKEN_KEY = 'sparerow_customer_token';
 
 export function getStoredCustomerToken(): string | null {
   try {
