@@ -125,7 +125,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => {
       await sendEmail(
         strapi,
         normalised,
-        'Reset your SpareHub password',
+        'Reset your Sparerow password',
         passwordResetHtml({ resetLink, contactEmail: normalised })
       );
       return { ok: true };

@@ -9,6 +9,7 @@ import {
   updateStorefrontAddress,
 } from '@/lib/graphql/storefront';
 import { StorefrontGraphQLError } from '@/lib/graphql/client';
+import { lookupIndianPincode } from '@/lib/pincodeLookup';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -111,6 +112,17 @@ export default function AccountAddressesPage() {
     setForm(emptyForm);
   };
 
+  const handlePostalCodeChange = async (value: string) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    setForm((prev) => ({ ...prev, postalCode: cleaned }));
+    if (cleaned.length === 6) {
+      const result = await lookupIndianPincode(cleaned);
+      if (result) {
+        setForm((prev) => ({ ...prev, postalCode: cleaned, city: result.city, state: result.state }));
+      }
+    }
+  };
+
   if (addressesQuery.isLoading) {
     return <p className="text-sm text-muted-foreground">Loading addresses…</p>;
   }
@@ -175,6 +187,17 @@ export default function AccountAddressesPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="addr-pin">Postal code</Label>
+              <Input
+                id="addr-pin"
+                inputMode="numeric"
+                maxLength={6}
+                value={form.postalCode}
+                onChange={(e) => void handlePostalCodeChange(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="addr-city">City</Label>
               <Input id="addr-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required />
             </div>
@@ -184,16 +207,6 @@ export default function AccountAddressesPage() {
                 id="addr-state"
                 value={form.state}
                 onChange={(e) => setForm({ ...form, state: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="addr-pin">Postal code</Label>
-              <Input
-                id="addr-pin"
-                inputMode="numeric"
-                value={form.postalCode}
-                onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
                 required
               />
             </div>

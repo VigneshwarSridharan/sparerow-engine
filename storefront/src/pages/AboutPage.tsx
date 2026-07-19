@@ -12,9 +12,9 @@ export default function AboutPage() {
   return (
     <div className="container py-10">
       <section className="text-center max-w-3xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">About SpareHub</h1>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight">About Sparerow</h1>
         <p className="mt-4 text-muted-foreground text-lg">
-          SpareHub is a modern storefront focused on genuine mobile spare parts, dependable fulfilment, and customer-first support.
+          Sparerow is a modern storefront focused on genuine mobile spare parts, dependable fulfilment, and customer-first support.
         </p>
       </section>
 
@@ -35,7 +35,7 @@ export default function AboutPage() {
             <CardTitle>Contact Us</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> support@sparehub.in</p>
+            <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> support@sparerow.in</p>
             <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> +91 98765 43210</p>
             <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Bengaluru, Karnataka, India</p>
             <Button className="mt-2">Start a Support Request</Button>
