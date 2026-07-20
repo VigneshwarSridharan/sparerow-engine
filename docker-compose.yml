@@ -45,6 +45,11 @@ services:
     container_name: spare-parts-postgres
     image: postgres:16-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-strapi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-strapi}
@@ -114,6 +119,11 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - ./spare-parts-backend/.env
     environment:
@@ -135,7 +145,15 @@ services:
       target: production
       args:
         VITE_STOREFRONT_GRAPHQL_ENDPOINT: ${VITE_STOREFRONT_GRAPHQL_ENDPOINT:-/graphql}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_POSTHOG_KEY: ${VITE_POSTHOG_KEY:-}
+        VITE_POSTHOG_HOST: ${VITE_POSTHOG_HOST:-https://us.i.posthog.com}
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - strapi_prod
 
@@ -146,6 +164,11 @@ services:
       context: ./reverse-proxy
       dockerfile: Dockerfile.certbot
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       LETSENCRYPT_DOMAIN: ${LETSENCRYPT_DOMAIN:-localhost}
       LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@example.com}
@@ -166,6 +189,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       LETSENCRYPT_DOMAIN: ${LETSENCRYPT_DOMAIN:-localhost}
     volumes:
@@ -174,6 +202,18 @@ services:
     depends_on:
       - strapi_prod
       - storefront_prod
+
+  dozzle:
+    profiles: ["production"]
+    container_name: spare-parts-dozzle
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    # Bound to localhost only — no nginx route, no public exposure.
+    # Access via: ssh -L 8080:localhost:8080 <user>@<vps> then open localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   strapi_node_modules:

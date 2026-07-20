@@ -119,12 +119,15 @@ Backend errors use `AppError` from `spare-parts-backend/src/lib/errors.ts`. Cont
 | `RAZORPAY_WEBHOOK_SECRET` | Webhook signature verification |
 | `SHIPPING_PRIMARY_CARRIER` | `MOCK`, `SHIPROCKET`, or `DELHIVERY` |
 | `SHIPPING_ENABLE_LIVE` | `true` to make real shipping API calls |
+| `SENTRY_DSN` | Backend error tracking (Sentry); unset disables |
 
 ### Storefront (Vite)
 
 | Variable | Purpose |
 |---|---|
 | `VITE_STOREFRONT_GRAPHQL_ENDPOINT` | GraphQL URL (must be browser-accessible); passed as build arg in Docker |
+| `VITE_SENTRY_DSN` | Storefront error tracking (Sentry); unset disables; passed as build arg in Docker |
+| `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` | Product analytics / funnel tracking (PostHog); unset disables; passed as build args in Docker |
 
 ---
 

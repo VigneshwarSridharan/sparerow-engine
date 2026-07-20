@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/react';
+
 const GRAPHQL_ENDPOINT =
   import.meta.env.VITE_STOREFRONT_GRAPHQL_ENDPOINT ?? 'http://localhost:1337/graphql';
 
@@ -45,16 +47,21 @@ export async function graphqlRequest<TData, TVariables extends Record<string, un
 
   if (!response.ok) {
     const first = payload.errors?.[0];
-    if (first) throw new StorefrontGraphQLError(first);
-    throw new Error(`GraphQL request failed with status ${response.status}`);
+    const error = first ? new StorefrontGraphQLError(first) : new Error(`GraphQL request failed with status ${response.status}`);
+    Sentry.captureException(error, { extra: { query, variables } });
+    throw error;
   }
 
   if (payload.errors?.length) {
-    throw new StorefrontGraphQLError(payload.errors[0]);
+    const error = new StorefrontGraphQLError(payload.errors[0]);
+    Sentry.captureException(error, { extra: { query, variables } });
+    throw error;
   }
 
   if (!payload.data) {
-    throw new Error('GraphQL response did not include data');
+    const error = new Error('GraphQL response did not include data');
+    Sentry.captureException(error, { extra: { query, variables } });
+    throw error;
   }
 
   return payload.data;

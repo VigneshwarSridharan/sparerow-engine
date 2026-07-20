@@ -1,22 +1,7 @@
 import type { Context } from 'koa';
 import { factories } from '@strapi/strapi';
 import unparsedSymbol from 'koa-body/lib/unparsed';
-import { AppError } from '../../../lib/errors';
-
-function handle(ctx: Context, fn: () => Promise<void>) {
-  return (async () => {
-    try {
-      await fn();
-    } catch (e: unknown) {
-      if (e instanceof AppError) {
-        ctx.status = e.status;
-        ctx.body = { error: { code: e.code, message: e.message } };
-        return;
-      }
-      throw e;
-    }
-  })();
-}
+import { handle } from '../../../lib/errors';
 
 function rawBodyFromCtx(ctx: Context): string {
   const body = ctx.request.body as Record<string, unknown> | undefined;

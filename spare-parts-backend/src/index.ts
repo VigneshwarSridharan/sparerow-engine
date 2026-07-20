@@ -1,5 +1,6 @@
 import type { Core } from '@strapi/strapi';
 import { GraphQLError } from 'graphql';
+import * as Sentry from '@sentry/node';
 import { AppError } from './lib/errors';
 import { computeProductUiFlags } from './lib/product-ui-flags';
 
@@ -13,6 +14,7 @@ function throwGraphQLError(error: unknown): never {
       },
     });
   }
+  Sentry.captureException(error);
   throw error;
 }
 
@@ -25,6 +27,14 @@ function normalizeModelName(name: string): string {
 
 export default {
   register({ strapi }: { strapi: Core.Strapi }) {
+    if (process.env.SENTRY_DSN) {
+      Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || 'development',
+        tracesSampleRate: 0.1,
+      });
+    }
+
     const extensionService = strapi.plugin('graphql')?.service('extension');
     if (!extensionService) return;
 
