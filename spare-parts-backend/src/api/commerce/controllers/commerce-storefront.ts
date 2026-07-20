@@ -1,21 +1,6 @@
 import type { Context } from 'koa';
 import { factories } from '@strapi/strapi';
-import { AppError } from '../../../lib/errors';
-
-function handle(ctx: Context, fn: () => Promise<void>) {
-  return (async () => {
-    try {
-      await fn();
-    } catch (e: unknown) {
-      if (e instanceof AppError) {
-        ctx.status = e.status;
-        ctx.body = { error: { code: e.code, message: e.message, details: e.details } };
-        return;
-      }
-      throw e;
-    }
-  })();
-}
+import { AppError, handle } from '../../../lib/errors';
 
 export default factories.createCoreController('api::commerce.singleton-placeholder', ({ strapi }) => ({
   async catalogBrands(ctx: Context) {

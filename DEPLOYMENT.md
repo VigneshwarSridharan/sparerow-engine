@@ -179,6 +179,13 @@ For detailed SSL documentation, see [SSL_SETUP.md](SSL_SETUP.md).
 
 ## Monitoring & Maintenance
 
+### Observability
+
+- **Errors** (backend + storefront exceptions): set `SENTRY_DSN` in `spare-parts-backend/.env` and `VITE_SENTRY_DSN` in `.env` (root) — free tier at sentry.io. Leave blank to disable.
+- **User journey / funnels**: set `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` in `.env` (root) — free tier at posthog.com.
+- **Uptime**: point a free UptimeRobot monitor at `https://yourdomain.com/` and `https://yourdomain.com/api/health`.
+- **Container logs** (nginx, strapi, storefront, postgres, certbot in one place): `dozzle` service binds to `127.0.0.1:8080` on the VPS only — view via `ssh -L 8080:localhost:8080 user@your-vps` then open `localhost:8080`. Not exposed publicly.
+
 ### View Logs
 
 ```bash

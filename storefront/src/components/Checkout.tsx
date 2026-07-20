@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import posthog from 'posthog-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -170,6 +171,8 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
             razorpayPaymentId: response.razorpay_payment_id,
             razorpaySignature: response.razorpay_signature,
           });
+          posthog.capture('payment_completed', { orderId: session.strapiOrderId });
+          posthog.capture('order_placed', { orderId: session.strapiOrderId, totalInMinor: total * 100 });
           setOrderPlaced(true);
           setOrderIdDisplay(session.displayOrderId);
           setPaymentSession(null);

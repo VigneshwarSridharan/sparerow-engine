@@ -1,4 +1,5 @@
 import { X, Minus, Plus, Trash2, Tag, ArrowRight } from 'lucide-react';
+import posthog from 'posthog-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -105,7 +106,15 @@ export function CartDrawer({ onCheckout }: CartDrawerProps) {
                 <p className="text-xs text-muted-foreground text-center">Add ₹{(2000 - subtotal).toLocaleString()} more for free shipping!</p>
               )}
 
-              <Button className="w-full" size="lg" onClick={() => { setIsCartOpen(false); onCheckout(); }}>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => {
+                  posthog.capture('checkout_opened', { cartItemCount: getCartCount(), cartTotal: total });
+                  setIsCartOpen(false);
+                  onCheckout();
+                }}
+              >
                 Proceed to Checkout <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
