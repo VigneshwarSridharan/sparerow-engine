@@ -3,6 +3,8 @@ import { AppError } from '../../../lib/errors';
 import {
   assertOrderTransition,
   assertShipmentTransition,
+  mapCarrierStatusToShipmentStatus,
+  SHIPMENT_STATUS_ORDER,
   type ShipmentStatus,
 } from '../../../lib/transitions';
 import { getPrimaryCarrier } from '../../../shipping/factory';
@@ -171,6 +173,21 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         carrierMetadata: sync.metadata || ship.carrierMetadata,
       },
     });
+
+    const currentStatus = ship.status as ShipmentStatus;
+    if (currentStatus !== 'FAILED' && currentStatus !== 'DELIVERED') {
+      const mapped = mapCarrierStatusToShipmentStatus(sync.carrierStatusLabel);
+      if (mapped === 'FAILED') {
+        await this.updateShipmentStatus(shipmentId, 'FAILED');
+      } else if (mapped) {
+        const currentIndex = SHIPMENT_STATUS_ORDER.indexOf(currentStatus);
+        const targetIndex = SHIPMENT_STATUS_ORDER.indexOf(mapped);
+        for (let i = currentIndex + 1; i <= targetIndex; i += 1) {
+          await this.updateShipmentStatus(shipmentId, SHIPMENT_STATUS_ORDER[i]);
+        }
+      }
+    }
+
     return strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
   },
 
