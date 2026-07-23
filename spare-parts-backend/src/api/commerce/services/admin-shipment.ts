@@ -174,21 +174,33 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       },
     });
 
-    const currentStatus = ship.status as ShipmentStatus;
-    if (currentStatus !== 'FAILED' && currentStatus !== 'DELIVERED') {
-      const mapped = mapCarrierStatusToShipmentStatus(sync.carrierStatusLabel);
-      if (mapped === 'FAILED') {
-        await this.updateShipmentStatus(shipmentId, 'FAILED');
-      } else if (mapped) {
-        const currentIndex = SHIPMENT_STATUS_ORDER.indexOf(currentStatus);
-        const targetIndex = SHIPMENT_STATUS_ORDER.indexOf(mapped);
-        for (let i = currentIndex + 1; i <= targetIndex; i += 1) {
-          await this.updateShipmentStatus(shipmentId, SHIPMENT_STATUS_ORDER[i]);
-        }
-      }
-    }
+    await this.advanceFromCarrierStatus(shipmentId, sync.carrierStatusLabel);
 
     return strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
+  },
+
+  // Maps a carrier's free-text status label onto our ShipmentStatus enum and walks the
+  // shipment forward through any skipped intermediate states (e.g. a missed IN_TRANSIT
+  // webhook before DELIVERED), reusing updateShipmentStatus's order-fulfillment cascade
+  // and email side effects for every hop. Shared by both the pull-based sync and the
+  // carrier's push webhook so the state machine is only walked in one place.
+  async advanceFromCarrierStatus(shipmentId: number, carrierStatusLabel: string | undefined | null) {
+    const ship = await strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
+    if (!ship) throw new AppError(404, 'SHIPMENT_NOT_FOUND', 'Shipment not found');
+    const currentStatus = ship.status as ShipmentStatus;
+    if (currentStatus === 'FAILED' || currentStatus === 'DELIVERED') return;
+
+    const mapped = mapCarrierStatusToShipmentStatus(carrierStatusLabel);
+    if (!mapped) return;
+    if (mapped === 'FAILED') {
+      await this.updateShipmentStatus(shipmentId, 'FAILED');
+      return;
+    }
+    const currentIndex = SHIPMENT_STATUS_ORDER.indexOf(currentStatus);
+    const targetIndex = SHIPMENT_STATUS_ORDER.indexOf(mapped);
+    for (let i = currentIndex + 1; i <= targetIndex; i += 1) {
+      await this.updateShipmentStatus(shipmentId, SHIPMENT_STATUS_ORDER[i]);
+    }
   },
 
   async readyForPickup(shipmentId: number) {

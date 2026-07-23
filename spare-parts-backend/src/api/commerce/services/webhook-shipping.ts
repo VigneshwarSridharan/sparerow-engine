@@ -1,7 +1,6 @@
 import type { Core } from '@strapi/strapi';
 import crypto from 'crypto';
 import { AppError } from '../../../lib/errors';
-import { assertShipmentTransition, type ShipmentStatus } from '../../../lib/transitions';
 
 function timingSafeHeader(received: string | undefined, expected: string): boolean {
   const a = Buffer.from(String(received || ''), 'utf8');
@@ -19,23 +18,34 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     }
   },
 
-  async applyCarrierEvent(body: { shipmentId?: number; trackingNumber?: string; nextStatus?: ShipmentStatus }) {
-    const shipmentId = Number(body.shipmentId);
-    if (!Number.isFinite(shipmentId)) throw new AppError(400, 'INVALID_SHIPMENT', 'Invalid shipment id');
-    const nextStatus = body.nextStatus;
-    if (!nextStatus) throw new AppError(400, 'STATUS_REQUIRED', 'nextStatus required');
-    const ship = await strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
-    if (!ship) throw new AppError(404, 'SHIPMENT_NOT_FOUND', 'Shipment not found');
-    assertShipmentTransition(ship.status as ShipmentStatus, nextStatus);
+  // Shiprocket's order-status webhook payload, e.g.:
+  // { awb, current_status, shipment_status, order_id, current_timestamp, scans: [...] }
+  // It correlates by awb (tracking number) — there is no internal shipment id in the
+  // payload — and carries the status as a free-text label rather than our enum.
+  async applyCarrierEvent(body: Record<string, unknown>) {
+    const awb = body.awb != null ? String(body.awb) : undefined;
+    if (!awb) throw new AppError(400, 'INVALID_SHIPMENT', 'awb required');
+    const ship = await strapi.db.query('api::shipment.shipment').findOne({ where: { trackingNumber: awb } });
+    if (!ship) throw new AppError(404, 'SHIPMENT_NOT_FOUND', `No shipment found for awb ${awb}`);
+
+    const carrierStatusLabel = (body.current_status || body.shipment_status) as string | undefined;
+    if (!carrierStatusLabel) throw new AppError(400, 'STATUS_REQUIRED', 'current_status required');
+
+    const shipmentId = ship.id as number;
     await strapi.db.query('api::shipment.shipment').update({
       where: { id: shipmentId },
       data: {
-        status: nextStatus,
-        trackingNumber: body.trackingNumber || ship.trackingNumber,
+        carrierStatusLabel,
         lastSyncedAt: new Date(),
-        carrierStatusLabel: nextStatus,
+        carrierMetadata: body,
       },
     });
+
+    const adminShipment = strapi.service('api::commerce.admin-shipment') as {
+      advanceFromCarrierStatus: (id: number, label: string | undefined | null) => Promise<void>;
+    };
+    await adminShipment.advanceFromCarrierStatus(shipmentId, carrierStatusLabel);
+
     return strapi.db.query('api::shipment.shipment').findOne({ where: { id: shipmentId } });
   },
 });
