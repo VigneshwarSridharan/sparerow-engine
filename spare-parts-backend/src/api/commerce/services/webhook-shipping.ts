@@ -18,11 +18,22 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     }
   },
 
+  // Shiprocket sends this fixed dummy payload as a connectivity check before it will
+  // let you save a webhook in its dashboard — it expects a 2xx even though no real
+  // shipment has this awb, so it must be acknowledged rather than treated as a miss.
+  isVerificationPing(body: Record<string, unknown>) {
+    return String(body.awb) === '123456';
+  },
+
   // Shiprocket's order-status webhook payload, e.g.:
   // { awb, current_status, shipment_status, order_id, current_timestamp, scans: [...] }
   // It correlates by awb (tracking number) — there is no internal shipment id in the
   // payload — and carries the status as a free-text label rather than our enum.
   async applyCarrierEvent(body: Record<string, unknown>) {
+    if (this.isVerificationPing(body)) {
+      return { ok: true, verification: true };
+    }
+
     const awb = body.awb != null ? String(body.awb) : undefined;
     if (!awb) throw new AppError(400, 'INVALID_SHIPMENT', 'awb required');
     const ship = await strapi.db.query('api::shipment.shipment').findOne({ where: { trackingNumber: awb } });
