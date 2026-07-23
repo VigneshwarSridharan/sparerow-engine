@@ -37,7 +37,11 @@ export default factories.createCoreController('api::commerce.singleton-placehold
     await handle(ctx, async () => {
       const secretHeader =
         (ctx.request.header['x-shipper-secret'] as string | undefined) ||
-        (ctx.request.header['x-shipping-secret'] as string | undefined);
+        (ctx.request.header['x-shipping-secret'] as string | undefined) ||
+        (ctx.request.header['x-api-key'] as string | undefined);
+      strapi.log.info(
+        `[shipping-webhook] header-match=${!!secretHeader} received-headers=${Object.keys(ctx.request.header).join(',')}`
+      );
       const wh = strapi.service('api::commerce.webhook-shipping') as {
         verifyShipperSecret: (h: string | undefined) => void;
         applyCarrierEvent: (b: Record<string, unknown>) => Promise<unknown>;
