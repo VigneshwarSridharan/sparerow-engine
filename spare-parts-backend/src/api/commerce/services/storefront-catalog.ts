@@ -321,27 +321,51 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     return serialized;
   },
 
-  /** Product/model/brand/category counts via one lightweight scan (id + relation ids only) — never hydrates images/variants/description for the whole catalog. */
+  /** Product/model/brand/category counts via SQL GROUP BY — never scans/hydrates the full product table.
+   * Strapi v5 stores these relations via link tables (products_part_model_lnk, part_models_brand_lnk,
+   * products_part_category_lnk), not FK columns directly on `products`/`part_models` — confirmed against
+   * the live schema (`\d products`, `\d part_models`), since neither table has a `part_model_id`/`brand_id`
+   * column of its own. */
   async listCatalogCounts() {
-    const rows = await strapi.db.query('api::product.product').findMany({
-      where: { isActive: true },
-      select: ['id'],
-      populate: {
-        partModel: { select: ['id'], populate: { brand: { select: ['id'] } } },
-        partCategory: { select: ['id'] },
-      },
-    });
-    const brandCounts = new Map<string, number>();
+    const modelBrandRows = await strapi.db
+      .connection('products')
+      .join('products_part_model_lnk', 'products.id', 'products_part_model_lnk.product_id')
+      .leftJoin(
+        'part_models_brand_lnk',
+        'products_part_model_lnk.part_model_id',
+        'part_models_brand_lnk.part_model_id'
+      )
+      .where('products.is_active', true)
+      .groupBy('products_part_model_lnk.part_model_id', 'part_models_brand_lnk.brand_id')
+      .select(
+        'products_part_model_lnk.part_model_id as modelId',
+        'part_models_brand_lnk.brand_id as brandId'
+      )
+      .count('products.id as count');
+
+    const categoryRows = await strapi.db
+      .connection('products')
+      .join('products_part_category_lnk', 'products.id', 'products_part_category_lnk.product_id')
+      .where('products.is_active', true)
+      .groupBy('products_part_category_lnk.part_category_id')
+      .select('products_part_category_lnk.part_category_id as categoryId')
+      .count('products.id as count');
+
     const modelCounts = new Map<string, number>();
-    const categoryCounts = new Map<string, number>();
-    for (const row of rows) {
-      const model = row.partModel as Record<string, unknown> | null | undefined;
-      const category = row.partCategory as Record<string, unknown> | null | undefined;
-      const brand = model?.brand as Record<string, unknown> | null | undefined;
-      if (model?.id) modelCounts.set(String(model.id), (modelCounts.get(String(model.id)) || 0) + 1);
-      if (brand?.id) brandCounts.set(String(brand.id), (brandCounts.get(String(brand.id)) || 0) + 1);
-      if (category?.id) categoryCounts.set(String(category.id), (categoryCounts.get(String(category.id)) || 0) + 1);
+    const brandCounts = new Map<string, number>();
+    for (const row of modelBrandRows as Array<{ modelId: unknown; brandId: unknown; count: string | number }>) {
+      // Postgres returns COUNT() as a string (bigint-safe) — must coerce or GraphQL Int! serialization breaks.
+      const count = Number(row.count);
+      if (row.modelId != null) modelCounts.set(String(row.modelId), count);
+      if (row.brandId != null) {
+        brandCounts.set(String(row.brandId), (brandCounts.get(String(row.brandId)) || 0) + count);
+      }
     }
+    const categoryCounts = new Map<string, number>(
+      (categoryRows as Array<{ categoryId: unknown; count: string | number }>)
+        .filter((r) => r.categoryId != null)
+        .map((r) => [String(r.categoryId), Number(r.count)])
+    );
     return { brandCounts, modelCounts, categoryCounts };
   },
 

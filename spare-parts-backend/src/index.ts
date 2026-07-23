@@ -3,6 +3,10 @@ import { GraphQLError } from 'graphql';
 import * as Sentry from '@sentry/node';
 import { AppError } from './lib/errors';
 import { computeProductUiFlags } from './lib/product-ui-flags';
+import {
+  getCachedStorefrontCatalogMeta,
+  setCachedStorefrontCatalogMeta,
+} from './api/commerce/services/storefront-catalog-meta-cache';
 
 function throwGraphQLError(error: unknown): never {
   if (error instanceof AppError) {
@@ -409,6 +413,9 @@ export default {
         Query: {
           storefrontCatalogMeta: async () => {
             try {
+              const fromCache = getCachedStorefrontCatalogMeta();
+              if (fromCache) return fromCache;
+
               const catalog = strapi.service('api::commerce.storefront-catalog') as {
                 listBrands: () => Promise<Array<Record<string, unknown>>>;
                 listCategories: () => Promise<Array<Record<string, unknown>>>;
@@ -461,7 +468,7 @@ export default {
               const defaultTaxRatePercent = globalTaxRule ? Number(globalTaxRule.ratePercent) : 0;
               const originStateCode = String(strapi.config.get('shipping.origin.state') || '');
 
-              return {
+              const result = {
                 brands,
                 categories,
                 partTypes,
@@ -470,6 +477,8 @@ export default {
                 originStateCode,
                 maxPriceInMinor: String(maxPriceInMinor),
               };
+              setCachedStorefrontCatalogMeta(result);
+              return result;
             } catch (error) {
               throwGraphQLError(error);
             }
