@@ -18,11 +18,14 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     }
   },
 
-  // Shiprocket sends this fixed dummy payload as a connectivity check before it will
-  // let you save a webhook in its dashboard — it expects a 2xx even though no real
-  // shipment has this awb, so it must be acknowledged rather than treated as a miss.
+  // Shiprocket sends a fixed dummy payload as a connectivity check before it will let
+  // you save a webhook in its dashboard — it expects a 2xx even though no real shipment
+  // has this awb, so it must be acknowledged rather than treated as a miss. Both values
+  // below have been observed as that dummy awb (123456 from a live "Test Webhook" click,
+  // 59629792084 from Shiprocket's own documented sample payload).
   isVerificationPing(body: Record<string, unknown>) {
-    return String(body.awb) === '123456';
+    const awb = String(body.awb);
+    return awb === '123456' || awb === '59629792084';
   },
 
   // Shiprocket's order-status webhook payload, e.g.:
