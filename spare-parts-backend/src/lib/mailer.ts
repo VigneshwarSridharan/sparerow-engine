@@ -18,7 +18,7 @@ export async function sendEmail(
 ): Promise<void> {
   const client = getClient(strapi);
   if (!client) {
-    strapi.log.warn('[mailer] RESEND_API_KEY not configured — email skipped to %s', to);
+    strapi.log.warn(`[mailer] RESEND_API_KEY not configured — email skipped to ${to}`);
     return;
   }
   const from = strapi.config.get<string>('email.from') || 'orders@sparerow.in';

@@ -11,11 +11,10 @@ const cronTasks: Record<
           reconcilePendingPayments: () => Promise<{ checked: number; paid: number; failed: number; flagged: number }>;
         };
         const summary = await svc.reconcilePendingPayments();
-        strapi.log.info('[cron] razorpay-reconcile-pending-payments %o', summary);
+        strapi.log.info(`[cron] razorpay-reconcile-pending-payments ${JSON.stringify(summary)}`);
       } catch (e) {
         strapi.log.error(
-          '[cron] razorpay-reconcile-pending-payments failed: %s',
-          e instanceof Error ? e.message : String(e)
+          `[cron] razorpay-reconcile-pending-payments failed: ${e instanceof Error ? e.message : String(e)}`
         );
       }
     },

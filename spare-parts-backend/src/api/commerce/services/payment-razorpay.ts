@@ -220,7 +220,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       };
       await shipmentSvc.bookShipmentForOrder(orderId);
     } catch (e) {
-      strapi.log.error('[payment] bookShipmentForOrder failed for order %d: %s', orderId, e instanceof Error ? e.message : String(e));
+      strapi.log.error(`[payment] bookShipmentForOrder failed for order ${orderId}: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     const populated = await strapi.db.query('api::order.order').findOne({
@@ -248,7 +248,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         });
         await sendEmail(strapi, String(populated.contactEmail), `Order Confirmed – ORD-${orderId}`, html);
       } catch (e) {
-        strapi.log.error('[mailer] order-confirmation failed for order %d: %s', orderId, e instanceof Error ? e.message : String(e));
+        strapi.log.error(`[mailer] order-confirmation failed for order ${orderId}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -270,7 +270,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       where: { id: orderId },
       data: { status: 'PAYMENT_FAILED', checkoutContinuationSecret: null },
     });
-    strapi.log.info('[payment] order %d marked PAYMENT_FAILED (%s)', orderId, reason);
+    strapi.log.info(`[payment] order ${orderId} marked PAYMENT_FAILED (${reason})`);
   },
 
   // Safety net for missed payment.captured/failed webhooks and abandoned browser tabs:
@@ -318,11 +318,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         if (success) {
           if (Number(success.amount) !== expectedAmt) {
             strapi.log.warn(
-              '[payment] reconcile: order %d payment %s amount mismatch (got %d, expected %d) — leaving for manual review',
-              order.id,
-              success.id,
-              success.amount,
-              expectedAmt
+              `[payment] reconcile: order ${order.id} payment ${success.id} amount mismatch (got ${success.amount}, expected ${expectedAmt}) — leaving for manual review`
             );
             flagged += 1;
             continue;
@@ -331,7 +327,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
             providerPaymentId: success.id,
             providerOrderId: String(order.providerOrderId),
           });
-          strapi.log.info('[payment] reconcile: order %d marked PAID via reconciliation (payment %s)', order.id, success.id);
+          strapi.log.info(`[payment] reconcile: order ${order.id} marked PAID via reconciliation (payment ${success.id})`);
           paid += 1;
         } else if (items.length > 0 && items.every((p) => p.status === 'failed')) {
           await self.markOrderPaymentFailed(order.id as number, 'razorpay_reconciliation_no_successful_payment');
@@ -339,7 +335,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
         }
         // else: no payment attempt yet, or still pending/created — leave PENDING_PAYMENT alone.
       } catch (e) {
-        strapi.log.error('[payment] reconcile: failed to check order %d: %s', order.id, e instanceof Error ? e.message : String(e));
+        strapi.log.error(`[payment] reconcile: failed to check order ${order.id}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
