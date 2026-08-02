@@ -128,7 +128,7 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
     return brands.map((brand) => serializeBrand(strapi, brand as unknown as Record<string, unknown>));
   },
 
-  /** Brands with productCount computed via one indexed count query per brand, instead of scanning every product. */
+  /** Brands with productCount computed via a single grouped count query, instead of one query per brand (which exhausts the DB pool once the brand list grows). */
   async listBrandsWithCounts() {
     const brands = await strapi.db.query('api::brand.brand').findMany({
       where: { isActive: true },
@@ -136,34 +136,50 @@ export default ({ strapi }: { strapi: Core.Strapi }) => ({
       select: ['id', 'documentId', 'slug', 'name', 'isActive'],
       populate: { logo: true },
     });
-    const counts = await Promise.all(
-      brands.map((brand) =>
-        strapi.db.query('api::product.product').count({
-          where: { partModel: { brand: brand.id }, isActive: true },
-        })
+    const countRows = await strapi.db
+      .connection('products')
+      .join('products_part_model_lnk', 'products.id', 'products_part_model_lnk.product_id')
+      .join(
+        'part_models_brand_lnk',
+        'products_part_model_lnk.part_model_id',
+        'part_models_brand_lnk.part_model_id'
       )
-    );
-    return brands.map((brand, i) => ({
+      .where('products.is_active', true)
+      .groupBy('part_models_brand_lnk.brand_id')
+      .select('part_models_brand_lnk.brand_id as brandId')
+      .count('products.id as count');
+    const countMap = new Map<string, number>();
+    for (const row of countRows as Array<{ brandId: unknown; count: string | number }>) {
+      if (row.brandId != null) countMap.set(String(row.brandId), Number(row.count));
+    }
+    return brands.map((brand) => ({
       ...serializeBrand(strapi, brand as unknown as Record<string, unknown>),
-      productCount: counts[i],
+      productCount: countMap.get(String(brand.id)) || 0,
     }));
   },
 
-  /** Categories with productCount computed via one indexed count query per category, instead of scanning every product. */
+  /** Categories with productCount computed via a single grouped count query, instead of one query per category (which exhausts the DB pool once the category list grows). */
   async listCategoriesWithCounts() {
     const categories = await strapi.db.query('api::part-category.part-category').findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
       select: ['id', 'documentId', 'slug', 'name', 'isActive'],
     });
-    const counts = await Promise.all(
-      categories.map((category) =>
-        strapi.db.query('api::product.product').count({
-          where: { partCategory: category.id, isActive: true },
-        })
-      )
-    );
-    return categories.map((category, i) => ({ ...category, productCount: counts[i] }));
+    const countRows = await strapi.db
+      .connection('products')
+      .join('products_part_category_lnk', 'products.id', 'products_part_category_lnk.product_id')
+      .where('products.is_active', true)
+      .groupBy('products_part_category_lnk.part_category_id')
+      .select('products_part_category_lnk.part_category_id as categoryId')
+      .count('products.id as count');
+    const countMap = new Map<string, number>();
+    for (const row of countRows as Array<{ categoryId: unknown; count: string | number }>) {
+      if (row.categoryId != null) countMap.set(String(row.categoryId), Number(row.count));
+    }
+    return categories.map((category) => ({
+      ...category,
+      productCount: countMap.get(String(category.id)) || 0,
+    }));
   },
 
   /** Models for one brand with productCount, scoped to that brand's (small) model list — never scans the full catalog. */
